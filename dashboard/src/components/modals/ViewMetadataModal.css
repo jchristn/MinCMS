@@ -1,0 +1,27 @@
+.metadata-modal {
+  overflow-x: auto;
+}
+
+.metadata-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.metadata-table td {
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.metadata-label {
+  font-weight: 600;
+  color: var(--text-heading);
+  width: 140px;
+  white-space: nowrap;
+}
+
+.metadata-value {
+  color: var(--text-body);
+  word-break: break-all;
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+  font-size: 13px;
+}

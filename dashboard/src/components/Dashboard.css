@@ -1,0 +1,10 @@
+.dashboard {
+  min-height: 100vh;
+  background: var(--bg-content);
+}
+
+.dashboard-content {
+  padding: 24px;
+  max-width: 90%;
+  margin: 0 auto;
+}

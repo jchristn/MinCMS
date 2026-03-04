@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+		<Title>MinCms.Core</Title>
+		<Authors>Joel Christner</Authors>
+		<Description>MinCMS core library.</Description>
+		<Copyright>(c)2025 Joel Christner</Copyright>
+		<NuGetAuditMode>direct</NuGetAuditMode>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+		<NoWarn>1701;1702;CS1998;CS8600;CS8602;CS8603;CS8604;CS8618;CS8625;CS0108;CS8601;CS0618</NoWarn>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+		<NoWarn>1701;1702;CS1998;CS8600;CS8602;CS8603;CS8604;CS8618;CS8625;CS0108;CS8601;CS0618</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="AWSSDK.S3" Version="4.0.0.3" />
+		<PackageReference Include="SyslogLogging" Version="2.0.13" />
+	</ItemGroup>
+
+</Project>

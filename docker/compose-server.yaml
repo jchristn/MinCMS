@@ -1,0 +1,12 @@
+services:
+  mincms-server:
+    image: jchristn77/mincms-server:latest
+    container_name: mincms-server
+    ports:
+      - "8100:8100"
+    volumes:
+      - ./server/mincms.json:/app/mincms.json
+      - ./server/logs:/app/logs
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production

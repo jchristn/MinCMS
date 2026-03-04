@@ -1,0 +1,15 @@
+services:
+  mincms-dashboard:
+    image: jchristn77/mincms-dashboard:latest
+    container_name: mincms-dashboard
+    ports:
+      - "8300:8300"
+    volumes:
+      - ./dashboard/entrypoint.sh:/entrypoint.sh
+      - ./dashboard/logs:/app/logs
+    environment:
+      - MINCMS_SERVER_URL=http://localhost:8200
+      - MINCMS_LOGO_FILE=
+      - MINCMS_LOGO_NOTEXT_FILE=
+      - MINCMS_FAVICON_FILE=
+    restart: unless-stopped

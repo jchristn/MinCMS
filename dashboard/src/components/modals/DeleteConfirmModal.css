@@ -1,0 +1,48 @@
+.delete-confirm-modal {
+  text-align: center;
+}
+
+.delete-warning-icon {
+  margin-bottom: 16px;
+}
+
+.delete-message {
+  font-size: 15px;
+  color: var(--text-body);
+  margin-bottom: 8px;
+}
+
+.entity-name {
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--text-heading);
+  margin-bottom: 8px;
+  word-break: break-all;
+}
+
+.delete-warning {
+  font-size: 13px;
+  color: var(--accent-danger);
+  margin-bottom: 24px;
+  font-weight: 500;
+}
+
+.delete-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: btn-spin 0.6s linear infinite;
+}
+
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
+}

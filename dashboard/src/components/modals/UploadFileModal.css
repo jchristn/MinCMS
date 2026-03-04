@@ -1,0 +1,165 @@
+.upload-dropzone {
+  border: 2px dashed var(--border-input);
+  border-radius: 8px;
+  padding: 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 12px;
+  background: var(--bg-surface-alt);
+}
+
+.upload-dropzone:hover,
+.upload-dropzone.dragover {
+  border-color: var(--accent-primary);
+  background: rgba(37, 99, 235, 0.05);
+}
+
+.upload-dropzone.has-file {
+  padding: 20px;
+}
+
+.upload-placeholder {
+  color: var(--text-muted);
+}
+
+.upload-placeholder svg {
+  margin-bottom: 8px;
+}
+
+.upload-placeholder p {
+  font-size: 14px;
+}
+
+/* Picker row */
+.upload-picker-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.upload-picker-row .btn-sm {
+  font-size: 12px;
+  padding: 4px 10px;
+}
+
+/* File list */
+.upload-file-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.upload-file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.upload-file-row:last-child {
+  border-bottom: none;
+}
+
+.upload-file-row.status-uploading {
+  background: rgba(37, 99, 235, 0.04);
+}
+
+.upload-file-row.status-done {
+  background: rgba(34, 197, 94, 0.04);
+}
+
+.upload-file-row.status-failed {
+  background: rgba(239, 68, 68, 0.04);
+}
+
+/* Status icons */
+.upload-status-icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+.upload-status-icon.status-pending {
+  display: inline-block;
+  border-radius: 50%;
+  background: var(--text-muted);
+  opacity: 0.4;
+}
+
+.upload-status-icon.status-uploading {
+  display: inline-block;
+  border-radius: 50%;
+  border: 2px solid var(--accent-primary);
+  border-top-color: transparent;
+  animation: upload-spin 0.8s linear infinite;
+}
+
+@keyframes upload-spin {
+  to { transform: rotate(360deg); }
+}
+
+.upload-status-icon.status-done {
+  color: var(--accent-success, #22c55e);
+}
+
+.upload-status-icon.status-failed {
+  color: var(--accent-danger, #ef4444);
+}
+
+/* File path and size */
+.upload-file-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-heading);
+}
+
+.upload-file-size {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* Remove button */
+.upload-file-remove {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.upload-file-remove:hover {
+  color: var(--accent-danger, #ef4444);
+}
+
+/* Error indicator */
+.upload-file-error {
+  flex-shrink: 0;
+  color: var(--accent-danger, #ef4444);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: help;
+}
+
+/* Summary bar */
+.upload-summary {
+  font-size: 13px;
+  padding: 8px 0;
+  color: var(--text-heading);
+  font-weight: 500;
+}
+
+.upload-summary-failed {
+  color: var(--accent-danger, #ef4444);
+}

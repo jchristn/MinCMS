@@ -1,0 +1,18 @@
+.collection-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.collection-list-header h2 {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.collection-list-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 4px 0 0 0;
+}

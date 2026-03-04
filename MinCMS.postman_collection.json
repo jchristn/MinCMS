@@ -1,0 +1,286 @@
+{
+	"info": {
+		"name": "MinCMS",
+		"description": "MinCMS REST API — manage collections and files backed by S3-compatible storage.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "apikey",
+		"apikey": [
+			{
+				"key": "key",
+				"value": "x-api-key",
+				"type": "string"
+			},
+			{
+				"key": "value",
+				"value": "{{apiKey}}",
+				"type": "string"
+			},
+			{
+				"key": "in",
+				"value": "header",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8100",
+			"type": "string"
+		},
+		{
+			"key": "apiKey",
+			"value": "mincmsadmin",
+			"type": "string"
+		},
+		{
+			"key": "slug",
+			"value": "my-collection",
+			"type": "string"
+		},
+		{
+			"key": "fileName",
+			"value": "example.txt",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Health Check (HEAD)",
+					"request": {
+						"method": "HEAD",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": ["{{baseUrl}}"],
+							"path": [""]
+						},
+						"auth": { "type": "noauth" },
+						"description": "Returns 200 if the server is running."
+					}
+				},
+				{
+					"name": "Root Page (GET)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": ["{{baseUrl}}"],
+							"path": [""]
+						},
+						"auth": { "type": "noauth" },
+						"description": "Returns the root HTML page."
+					}
+				}
+			]
+		},
+		{
+			"name": "Collections",
+			"item": [
+				{
+					"name": "List Collections",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1.0/collections",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1.0", "collections"]
+						},
+						"description": "Returns all collections."
+					}
+				},
+				{
+					"name": "Create Collection",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"Name\": \"My Collection\",\n  \"Slug\": \"my-collection\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1.0/collections",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1.0", "collections"]
+						},
+						"description": "Creates a new collection. Returns 201 on success."
+					}
+				},
+				{
+					"name": "Get Collection",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1.0/collections/{{slug}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1.0", "collections", "{{slug}}"]
+						},
+						"description": "Returns a collection by slug."
+					}
+				},
+				{
+					"name": "Delete Collection",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1.0/collections/{{slug}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1.0", "collections", "{{slug}}"]
+						},
+						"description": "Deletes a collection and all its files. Returns 204."
+					}
+				}
+			]
+		},
+		{
+			"name": "Files",
+			"item": [
+				{
+					"name": "List Files",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1.0/collections/{{slug}}/files",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1.0", "collections", "{{slug}}", "files"]
+						},
+						"description": "Lists all files in a collection."
+					}
+				},
+				{
+					"name": "Upload File",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": ""
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1.0/collections/{{slug}}/files",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1.0", "collections", "{{slug}}", "files"]
+						},
+						"description": "Uploads a file to the collection. Returns 201 with file metadata."
+					}
+				},
+				{
+					"name": "Get File Metadata",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1.0/collections/{{slug}}/files/{{fileName}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1.0", "collections", "{{slug}}", "files", "{{fileName}}"]
+						},
+						"description": "Returns metadata for a specific file."
+					}
+				},
+				{
+					"name": "Delete File",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1.0/collections/{{slug}}/files/{{fileName}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1.0", "collections", "{{slug}}", "files", "{{fileName}}"]
+						},
+						"description": "Deletes a single file. Returns 204."
+					}
+				},
+				{
+					"name": "Delete Multiple Files",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"FileNames\": [\n    \"file1.txt\",\n    \"file2.txt\"\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1.0/collections/{{slug}}/files",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1.0", "collections", "{{slug}}", "files"]
+						},
+						"description": "Deletes multiple files in a single request. Returns 200 with DeletedCount."
+					}
+				}
+			]
+		},
+		{
+			"name": "Downloads",
+			"item": [
+				{
+					"name": "Browse Collection",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/download/{{slug}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["download", "{{slug}}"]
+						},
+						"auth": { "type": "noauth" },
+						"description": "Returns an HTML page listing all files with download links."
+					}
+				},
+				{
+					"name": "Download File",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/download/{{slug}}/{{fileName}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["download", "{{slug}}", "{{fileName}}"]
+						},
+						"auth": { "type": "noauth" },
+						"description": "Downloads a file. Returns binary stream with Content-Disposition header."
+					}
+				},
+				{
+					"name": "Sitemap",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/download/{{slug}}/sitemap.xml",
+							"host": ["{{baseUrl}}"],
+							"path": ["download", "{{slug}}", "sitemap.xml"]
+						},
+						"auth": { "type": "noauth" },
+						"description": "Returns an XML sitemap for the collection."
+					}
+				}
+			]
+		}
+	]
+}

@@ -1,0 +1,42 @@
+services:
+
+  mincms-server:
+    image: jchristn77/mincms-server:latest
+    container_name: mincms-server
+    ports:
+      - "8200:8200"
+    volumes:
+      - ./server/mincms.json:/app/mincms.json
+      - ./server/logs:/app/logs
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - WEBSERVER_HOSTNAME=
+      - WEBSERVER_PORT=
+      - S3_ACCESS_KEY=
+      - S3_SECRET_KEY=
+      - S3_BUCKET=
+      - S3_REGION=
+      - S3_ENDPOINT=
+      - S3_USE_SSL=
+      - S3_REQUEST_STYLE=
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8200/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  mincms-dashboard:
+    image: jchristn77/mincms-dashboard:latest
+    container_name: mincms-dashboard
+    ports:
+      - "8300:8300"
+    environment:
+      - MINCMS_SERVER_URL=http://localhost:8200
+      - MINCMS_LOGO_FILE=
+      - MINCMS_LOGO_NOTEXT_FILE=
+      - MINCMS_FAVICON_FILE=
+    restart: unless-stopped
+    depends_on:
+      - mincms-server

@@ -1,0 +1,125 @@
+.collection-view {
+  min-height: 100vh;
+  background: var(--bg-content);
+}
+
+.collection-view-content {
+  padding: 24px;
+  max-width: 90%;
+  margin: 0 auto;
+  transition: outline 0.15s, outline-offset 0.15s;
+}
+
+.collection-view-content.drag-over {
+  outline: 2px dashed var(--accent-primary);
+  outline-offset: -8px;
+  border-radius: 8px;
+}
+
+.collection-view-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--accent-primary);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  text-decoration: none;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb-sep {
+  color: var(--text-faint);
+}
+
+.breadcrumb-current {
+  color: var(--text-heading);
+  font-weight: 500;
+}
+
+.collection-view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.collection-view-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.collection-view-header h2 {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-heading);
+  margin-bottom: 4px;
+}
+
+.collection-view-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0 0 4px 0;
+}
+
+.collection-base-url {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.collection-base-url-label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.collection-base-url-value {
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+  font-size: 13px;
+  background: var(--bg-surface-alt);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-default);
+}
+
+.collection-base-url-copy {
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.collection-base-url-copy:hover {
+  color: var(--text-default);
+  background: var(--bg-surface-alt);
+}
+
+.folder-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent-primary);
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.folder-link:hover {
+  text-decoration: underline;
+}

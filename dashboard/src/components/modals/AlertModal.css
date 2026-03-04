@@ -1,0 +1,39 @@
+.alert-modal {
+  text-align: center;
+}
+
+.alert-icon {
+  margin-bottom: 16px;
+}
+
+.alert-message {
+  font-size: 15px;
+  color: var(--text-body);
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.alert-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.btn-alert {
+  padding: 8px 32px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  color: #fff;
+  transition: opacity 0.2s;
+}
+
+.btn-alert:hover {
+  opacity: 0.9;
+}
+
+.btn-error { background: #dc2626; }
+.btn-warning { background: #d97706; }
+.btn-info { background: #2563eb; }
+.btn-success { background: #16a34a; }

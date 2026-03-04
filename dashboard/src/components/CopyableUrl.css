@@ -1,0 +1,42 @@
+.copyable-url {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 300px;
+}
+
+.copyable-url-value {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copyable-url-btn {
+  background: none;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  padding: 2px 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.copyable-url-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.copyable-url-btn.copied {
+  color: var(--accent-success);
+  border-color: var(--accent-success);
+}
+
+.copyable-url-empty {
+  color: var(--text-faint);
+}
