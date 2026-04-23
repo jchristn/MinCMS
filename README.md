@@ -103,6 +103,14 @@ MinCMS stores everything (files and metadata) in any S3-compatible bucket — AW
 
 > **Tip:** Change the default access key in `mincms.json` before deploying to production.
 
+### Resetting the Docker Deployment
+
+From the `docker` directory, run `factory/reset.bat` on Windows or `bash factory/reset.sh` on macOS/Linux to restore the local Docker deployment to the repository factory defaults.
+
+The factory reset stops the MinCMS containers, restores `docker/server/mincms.json` and `docker/dashboard/entrypoint.sh`, and clears the local Docker log directories. It does **not** delete collections or files already stored in your configured S3-compatible bucket.
+
+Because the reset restores the placeholder factory `mincms.json`, you must re-enter valid S3 credentials before starting the stack again.
+
 ## Architecture
 
 MinCMS consists of two services:
