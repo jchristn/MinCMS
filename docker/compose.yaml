@@ -1,4 +1,39 @@
 services:
+  less3:
+    image: jchristn77/less3
+    container_name: less3
+    ports:
+      - "8000:8000"
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./less3/system.json:/app/system.json
+      - ./less3/less3.db:/app/less3.db
+      - ./less3/logs:/app/logs
+      - ./less3/temp:/app/temp
+      - ./less3/disk:/app/disk
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -o /dev/null -w '' http://localhost:8000 ; test $$? -ne 7"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  less3-ui:
+    image: jchristn77/less3-ui
+    container_name: less3-ui
+    ports:
+      - "3000:3000"
+    stdin_open: true
+    tty: true
+    environment:
+      TERM: xterm-256color
+      LESS3_SERVER_URL: http://localhost:8000
+    depends_on:
+      less3:
+        condition: service_healthy
+    restart: unless-stopped
 
   mincms-server:
     image: jchristn77/mincms-server:latest
@@ -9,22 +44,25 @@ services:
       - ./server/mincms.json:/app/mincms.json
       - ./server/logs:/app/logs
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - WEBSERVER_HOSTNAME=
-      - WEBSERVER_PORT=
-      - S3_ACCESS_KEY=
-      - S3_SECRET_KEY=
-      - S3_BUCKET=
-      - S3_REGION=
-      - S3_ENDPOINT=
-      - S3_USE_SSL=
-      - S3_REQUEST_STYLE=
+      ASPNETCORE_ENVIRONMENT: Production
+      WEBSERVER_HOSTNAME: "*"
+      WEBSERVER_PORT: "8200"
+      S3_ACCESS_KEY: default
+      S3_SECRET_KEY: default
+      S3_BUCKET: default
+      S3_REGION: us-west-1
+      S3_ENDPOINT: http://less3:8000
+      S3_USE_SSL: "false"
+      S3_REQUEST_STYLE: PathStyle
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8200/"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+      interval: 5s
+      timeout: 3s
+      retries: 2
+      start_period: 5s
+    depends_on:
+      less3:
+        condition: service_healthy
     restart: unless-stopped
 
   mincms-dashboard:
@@ -33,10 +71,11 @@ services:
     ports:
       - "8300:8300"
     environment:
-      - MINCMS_SERVER_URL=http://localhost:8200
-      - MINCMS_LOGO_FILE=
-      - MINCMS_LOGO_NOTEXT_FILE=
-      - MINCMS_FAVICON_FILE=
-    restart: unless-stopped
+      MINCMS_SERVER_URL: http://localhost:8200
+      MINCMS_LOGO_FILE: ""
+      MINCMS_LOGO_NOTEXT_FILE: ""
+      MINCMS_FAVICON_FILE: ""
     depends_on:
-      - mincms-server
+      mincms-server:
+        condition: service_healthy
+    restart: unless-stopped

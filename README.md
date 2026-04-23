@@ -40,7 +40,7 @@ MinCMS stores everything (files and metadata) in any S3-compatible bucket — AW
 ### Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
-- An S3-compatible storage account (AWS S3, MinIO, Wasabi, etc.)
+- An external S3-compatible storage account only if you plan to replace the bundled Less3 service
 
 ### Quick Start with Docker Compose
 
@@ -51,65 +51,48 @@ MinCMS stores everything (files and metadata) in any S3-compatible bucket — AW
    cd MinCMS/docker
    ```
 
-2. **Configure your S3 credentials (required before starting)**
-
-   Edit `docker/server/mincms.json` and fill in your S3 settings. The server will fail to start if these are not configured.
-
-   **AWS S3:**
-
-   ```json
-   {
-     "S3": {
-       "AccessKey": "your-access-key",
-       "SecretKey": "your-secret-key",
-       "Bucket": "your-bucket-name",
-       "Region": "us-east-1"
-     }
-   }
-   ```
-
-   **MinIO or other S3-compatible services** — also set `EndpointUrl` and `RequestStyle`:
-
-   ```json
-   {
-     "S3": {
-       "AccessKey": "minioadmin",
-       "SecretKey": "minioadmin",
-       "Bucket": "my-bucket",
-       "Region": "us-east-1",
-       "EndpointUrl": "http://localhost:9000",
-       "UseSsl": false,
-       "RequestStyle": "PathStyle"
-     }
-   }
-   ```
-
-   > **Important:** You must update `docker/server/mincms.json` with valid S3 credentials **before** running `docker compose up`. The configuration file is mounted into the container at startup — changes made after the container is running require a restart (`docker compose restart mincms-server`).
-
-3. **Start the stack**
+2. **Start the stack**
 
    ```bash
    docker compose up -d
    ```
 
-4. **Access the services**
+3. **Access the services**
 
-   | Service   | URL                        |
-   |-----------|----------------------------|
-   | API       | http://localhost:8200      |
-   | Dashboard | http://localhost:8300      |
+   | Service      | URL                   |
+   |--------------|-----------------------|
+   | Less3 API    | http://localhost:8000 |
+   | Less3 UI     | http://localhost:3000 |
+   | MinCMS API   | http://localhost:8200 |
+   | MinCMS UI    | http://localhost:8300 |
 
-5. **Log into the dashboard** using the default API key: `mincmsadmin`
+4. **Use the bundled local storage defaults**
 
-> **Tip:** Change the default access key in `mincms.json` before deploying to production.
+   The Docker deployment is preconfigured so MinCMS uses the bundled Less3 instance as its S3-compatible backend with these defaults:
+
+   - Access key: `default`
+   - Secret key: `default`
+   - Bucket: `default`
+   - Region: `us-west-1`
+   - Endpoint inside Docker: `http://less3:8000`
+   - URL style: `PathStyle`
+   - SSL: disabled
+
+5. **Log into the dashboards**
+
+   Use `mincmsadmin` for the MinCMS dashboard API key. Less3 ships with its default seeded Docker database and can be managed through the Less3 UI on port `3000`.
+
+6. **Switching to another S3 provider**
+
+   Update the S3 values in `docker/compose.yaml` or `docker/server/mincms.json` if you want MinCMS to target AWS S3, MinIO, Wasabi, Backblaze B2, or another S3-compatible service. Changes made after the container is running require a restart (`docker compose restart mincms-server`).
 
 ### Resetting the Docker Deployment
 
 From the `docker` directory, run `factory/reset.bat` on Windows or `bash factory/reset.sh` on macOS/Linux to restore the local Docker deployment to the repository factory defaults.
 
-The factory reset stops the MinCMS containers, restores `docker/server/mincms.json` and `docker/dashboard/entrypoint.sh`, and clears the local Docker log directories. It does **not** delete collections or files already stored in your configured S3-compatible bucket.
+The factory reset stops the full MinCMS and Less3 deployment, restores `docker/server/mincms.json`, `docker/dashboard/entrypoint.sh`, `docker/less3/system.json`, and the seeded `docker/less3/less3.db`, then clears the local Docker runtime directories for logs, temp files, and Less3 object storage.
 
-Because the reset restores the placeholder factory `mincms.json`, you must re-enter valid S3 credentials before starting the stack again.
+After reset, the stack returns to the bundled local defaults where MinCMS targets Less3 with access key `default`, secret key `default`, bucket `default`, region `us-west-1`, and path-style requests.
 
 ## Architecture
 

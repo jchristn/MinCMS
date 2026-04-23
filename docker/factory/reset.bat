@@ -5,8 +5,6 @@ SET "SCRIPT_DIR=%~dp0"
 FOR %%I IN ("%SCRIPT_DIR%.") DO SET "FACTORY_DIR=%%~fI"
 FOR %%I IN ("%SCRIPT_DIR%..") DO SET "DOCKER_DIR=%%~fI"
 SET "COMPOSE_MAIN=%DOCKER_DIR%\compose.yaml"
-SET "COMPOSE_SERVER=%DOCKER_DIR%\compose-server.yaml"
-SET "COMPOSE_DASHBOARD=%DOCKER_DIR%\compose-dashboard.yaml"
 
 ECHO.
 ECHO ==========================================================
@@ -16,16 +14,15 @@ ECHO.
 ECHO WARNING: This is a destructive reset of the local Docker
 ECHO deployment state. The following will be changed:
 ECHO.
-ECHO   - Docker containers from the MinCMS compose files will be stopped and removed
-ECHO   - docker\server\mincms.json will be restored to the factory template
+ECHO   - Docker containers from docker\compose.yaml will be stopped and removed
+ECHO   - docker\server\mincms.json will be restored to the bundled Less3-backed defaults
 ECHO   - docker\dashboard\entrypoint.sh will be restored to the factory copy
-ECHO   - docker\server\logs and docker\dashboard\logs will be cleared
+ECHO   - docker\less3\system.json and docker\less3\less3.db will be restored
+ECHO   - docker\server\logs, docker\dashboard\logs, docker\less3\logs,
+ECHO     docker\less3\temp, and docker\less3\disk will be cleared
 ECHO.
-ECHO This reset does NOT delete collections or files already stored
-ECHO in the configured S3-compatible bucket.
-ECHO.
-ECHO After reset, update docker\server\mincms.json with valid S3
-ECHO settings before starting the deployment again.
+ECHO After reset, MinCMS will target the bundled Less3 service using
+ECHO access key default, secret key default, and bucket default.
 ECHO.
 SET /P CONFIRM=Type RESET to continue: 
 IF NOT "%CONFIRM%"=="RESET" (
@@ -35,16 +32,12 @@ IF NOT "%CONFIRM%"=="RESET" (
 )
 
 ECHO.
-ECHO [1/4] Stopping Docker deployments...
+ECHO [1/4] Stopping Docker deployment...
 CALL :ComposeDown "%COMPOSE_MAIN%"
 IF ERRORLEVEL 1 GOTO :Error
 
-CALL :ComposeDown "%COMPOSE_SERVER%"
-IF ERRORLEVEL 1 GOTO :Error
-
-CALL :ComposeDown "%COMPOSE_DASHBOARD%"
-IF ERRORLEVEL 1 GOTO :Error
-
+docker rm -f less3 >NUL 2>&1
+docker rm -f less3-ui >NUL 2>&1
 docker rm -f mincms-server >NUL 2>&1
 docker rm -f mincms-dashboard >NUL 2>&1
 
@@ -56,7 +49,16 @@ IF ERRORLEVEL 1 GOTO :Error
 CALL :RestoreFile "mincms_dashboard_config\entrypoint.sh" "%DOCKER_DIR%\dashboard\entrypoint.sh"
 IF ERRORLEVEL 1 GOTO :Error
 
-ECHO         Restored server and dashboard deployment files
+CALL :RestoreFile "less3_config\system.json" "%DOCKER_DIR%\less3\system.json"
+IF ERRORLEVEL 1 GOTO :Error
+
+CALL :RestoreFile "less3_database\less3.db" "%DOCKER_DIR%\less3\less3.db"
+IF ERRORLEVEL 1 GOTO :Error
+
+DEL /Q "%DOCKER_DIR%\less3\less3.db-shm" >NUL 2>&1
+DEL /Q "%DOCKER_DIR%\less3\less3.db-wal" >NUL 2>&1
+
+ECHO         Restored MinCMS and Less3 deployment files
 
 ECHO.
 ECHO [3/4] Resetting runtime directories...
@@ -66,7 +68,16 @@ IF ERRORLEVEL 1 GOTO :Error
 CALL :MirrorDirectory "mincms_dashboard_logs" "%DOCKER_DIR%\dashboard\logs"
 IF ERRORLEVEL 1 GOTO :Error
 
-ECHO         Cleared local MinCMS log directories
+CALL :MirrorDirectory "less3_logs" "%DOCKER_DIR%\less3\logs"
+IF ERRORLEVEL 1 GOTO :Error
+
+CALL :MirrorDirectory "less3_temp" "%DOCKER_DIR%\less3\temp"
+IF ERRORLEVEL 1 GOTO :Error
+
+CALL :MirrorDirectory "less3_disk" "%DOCKER_DIR%\less3\disk"
+IF ERRORLEVEL 1 GOTO :Error
+
+ECHO         Cleared local MinCMS and Less3 runtime directories
 
 ECHO.
 ECHO [4/4] Factory reset complete.
@@ -75,7 +86,7 @@ ECHO To restart the deployment:
 ECHO   cd /d "%DOCKER_DIR%"
 ECHO   docker compose up -d
 ECHO.
-ECHO Remember to reconfigure docker\server\mincms.json first if you need a working S3 connection.
+ECHO Less3 will be available on http://localhost:8000 and MinCMS on http://localhost:8200.
 GOTO :Done
 
 :ComposeDown

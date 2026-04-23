@@ -1,17 +1,17 @@
 {
-  "Rest": { 
+  "Rest": {
     "Hostname": "*",
     "Port": 8200,
     "Ssl": false
   },
   "S3": {
-    "AccessKey": "{s3-access-key}",
-    "SecretKey": "{s3-secret-key}",
-    "Bucket": "{s3-bucket}",
-    "Region": "us-east-2",
-    "EndpointUrl": null,
-    "UseSsl": true,
-    "RequestStyle": "VirtualHosted"
+    "AccessKey": "default",
+    "SecretKey": "default",
+    "Bucket": "default",
+    "Region": "us-west-1",
+    "EndpointUrl": "http://less3:8000",
+    "UseSsl": false,
+    "RequestStyle": "PathStyle"
   },
   "AccessKeys": [
     {

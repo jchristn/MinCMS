@@ -123,6 +123,7 @@ namespace MinCms.Core.Services
                     ContentType = Constants.JsonContentType,
                     InputStream = new MemoryStream(bytes)
                 };
+                ApplyCompatibilityMetadata(request);
 
                 await _S3Client.PutObjectAsync(request, token).ConfigureAwait(false);
 
@@ -233,6 +234,7 @@ namespace MinCms.Core.Services
                     ContentType = !String.IsNullOrEmpty(contentType) ? contentType : Constants.BinaryContentType,
                     InputStream = content
                 };
+                ApplyCompatibilityMetadata(request);
 
                 await _S3Client.PutObjectAsync(request, token).ConfigureAwait(false);
 
@@ -480,6 +482,7 @@ namespace MinCms.Core.Services
                     ContentType = Constants.JsonContentType,
                     InputStream = new MemoryStream(bytes)
                 };
+                ApplyCompatibilityMetadata(putRequest);
 
                 await _S3Client.PutObjectAsync(putRequest, token).ConfigureAwait(false);
                 _Logging.Info(_Header + "created empty collections configuration in S3");
@@ -489,6 +492,15 @@ namespace MinCms.Core.Services
         #endregion
 
         #region Private-Methods
+
+        private void ApplyCompatibilityMetadata(PutObjectRequest request)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+
+            // Less3 currently fails object reads when metadata is persisted as an empty string.
+            // Always sending one user-metadata entry keeps the stored value valid JSON.
+            request.Metadata["mincms-origin"] = "mincms";
+        }
 
         #endregion
     }
