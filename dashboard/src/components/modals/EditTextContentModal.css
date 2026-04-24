@@ -1,0 +1,167 @@
+.edit-text-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  min-height: 0;
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+}
+
+.edit-text-modal input,
+.edit-text-modal textarea,
+.edit-text-modal button,
+.edit-text-modal label {
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+}
+
+.edit-text-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.edit-text-modal-header p {
+  color: var(--text-muted);
+  font-size: 14px;
+  flex: 1;
+}
+
+.edit-text-modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.edit-text-copy-btn {
+  min-width: 110px;
+  justify-content: center;
+}
+
+.edit-text-copy-btn.copied {
+  color: #fff;
+  background: var(--accent-success);
+  border-color: var(--accent-success);
+}
+
+.edit-text-dirty {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-default);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.edit-text-dirty.is-dirty {
+  color: #fff;
+  background: var(--accent-danger);
+  border-color: var(--accent-danger);
+}
+
+.edit-text-modal-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 16px;
+}
+
+.edit-text-meta-value {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid var(--border-input);
+  border-radius: 6px;
+  background: var(--bg-surface-alt);
+  color: var(--text-body);
+  font-size: 14px;
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+  overflow-wrap: anywhere;
+}
+
+.edit-text-file-display {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.edit-text-modal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.edit-text-modal-meta span {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-default);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+}
+
+.edit-text-error {
+  padding: 12px 14px;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: 8px;
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--accent-danger);
+  font-size: 14px;
+}
+
+.edit-text-editor-group {
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.edit-text-editor-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+
+.edit-text-editor-bytes {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+}
+
+.edit-text-editor {
+  flex: 1;
+  min-height: 62vh;
+  resize: vertical;
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+  line-height: 1.5;
+  tab-size: 2;
+  white-space: pre;
+}
+
+@media (max-width: 960px) {
+  .edit-text-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .edit-text-modal-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .edit-text-modal-header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .edit-text-editor {
+    min-height: 45vh;
+  }
+}

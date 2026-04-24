@@ -14,7 +14,7 @@ class ApiClient {
       headers['x-api-key'] = this.accessKey;
     }
 
-    if (!(options.body instanceof FormData)) {
+    if (options.body !== undefined && !(options.body instanceof FormData)) {
       headers['Content-Type'] = 'application/json';
     }
 
@@ -108,6 +108,22 @@ class ApiClient {
 
   async uploadFile(slug, file, fileName) {
     return this.upload(`/v1.0/collections/${encodeURIComponent(slug)}/files`, file, fileName);
+  }
+
+  async getFileText(slug, fileName) {
+    return this.request(`/download/${encodeURIComponent(slug)}/${encodeURIComponent(fileName)}`, {
+      method: 'GET',
+      headers: {
+        Accept: 'text/plain, text/*;q=0.9, */*;q=0.1',
+      },
+    });
+  }
+
+  async saveTextFile(slug, fileName, content, contentType = 'text/plain') {
+    const fileParts = fileName.split('/').filter(Boolean);
+    const leafName = fileParts[fileParts.length - 1] || 'untitled.txt';
+    const file = new File([content], leafName, { type: contentType });
+    return this.uploadFile(slug, file, fileName);
   }
 
   async getFileMetadata(slug, fileName) {
