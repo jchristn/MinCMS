@@ -6,15 +6,12 @@ if "%~1"=="" (
     exit /b 1
 )
 set TAG=%~1
-set IMAGE=jchristn77/mincms-server
-echo Building %IMAGE%:latest and %IMAGE%:%TAG%...
-docker buildx build ^
-    --builder cloud-jchristn77-jchristn77 ^
-    --platform linux/amd64,linux/arm64/v8 ^
+set IMAGE=mincms-server
+echo Building %IMAGE%:latest and %IMAGE%:%TAG% from local source...
+docker build ^
     -t %IMAGE%:latest ^
     -t %IMAGE%:%TAG% ^
     -f src/MinCms.Server/Dockerfile ^
-    --push ^
     src/
 echo Done.
 endlocal

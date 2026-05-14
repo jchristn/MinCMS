@@ -1,789 +1,440 @@
 # MinCMS REST API Reference
 
-MinCMS exposes a RESTful API for managing collections and files backed by S3-compatible storage. This document covers every endpoint, request/response format, authentication, and error handling.
+This document describes the MinCMS HTTP interface as it exists in this repository after the Watson 7 migration.
 
-## Table of Contents
+## Base URLs
 
-- [Base URL](#base-url)
-- [OpenAPI / Swagger](#openapi--swagger)
-- [Authentication](#authentication)
-- [Error Responses](#error-responses)
-- [Endpoints](#endpoints)
-  - [Health](#health)
-  - [Collections](#collections)
-  - [Files](#files)
-  - [Public Downloads](#public-downloads)
-- [Data Models](#data-models)
-- [Quick Reference](#quick-reference)
-- [Notes](#notes)
+Default local endpoints:
 
----
+- API root: `http://localhost:8200`
+- OpenAPI JSON: `http://localhost:8200/openapi.json`
+- Swagger UI: `http://localhost:8200/swagger`
+- Dashboard: `http://localhost:8300`
 
-## Base URL
+All managed API routes are rooted at `/v1.0`. Public download routes are rooted at `/download`.
 
-The API is served from the root of the configured host. The default Docker Compose configuration exposes the server on port **8100**.
+## OpenAPI And Swagger
 
-```
-http://localhost:8100
-```
+MinCMS generates OpenAPI metadata at runtime.
 
-All managed endpoints are prefixed with `/v1.0`. Public download endpoints use the `/download` prefix.
+Included in the generated spec:
 
----
+- `GET` and `OPTIONS` on `/`
+- `GET` and `OPTIONS` on `/openapi.json`
+- `GET` and `OPTIONS` on `/swagger`
+- all authenticated `/v1.0/*` routes
+- `OPTIONS` on every documented non-download route
 
-## OpenAPI / Swagger
+Intentionally excluded from the generated spec:
 
-MinCMS ships with built-in OpenAPI support. When the server is running you can access:
+- `/download/{slug}`
+- `/download/{slug}/sitemap.xml`
+- `/download/{slug}/{fileName}`
 
-| Resource       | URL                                     | Description                                |
-|----------------|------------------------------------------|--------------------------------------------|
-| OpenAPI spec   | `http://localhost:8100/openapi.json`     | OpenAPI 3.x JSON specification             |
-| Swagger UI     | `http://localhost:8100/swagger`          | Interactive API explorer                   |
-
-The specification includes all endpoints, request/response schemas, and two registered security schemes:
-
-| Scheme   | Type        | Location | Description                                      |
-|----------|-------------|----------|--------------------------------------------------|
-| `ApiKey` | API Key     | Header   | API key provided in the `x-api-key` header       |
-| `Bearer` | HTTP Bearer | Header   | API key provided as a Bearer token               |
-
-Tags used in the spec: **Health**, **Collections**, **Files**, **Downloads**.
-
----
+Those download routes are still live and documented below; they are omitted from Swagger because they are public and dynamic.
 
 ## Authentication
 
-All `/v1.0/*` endpoints require authentication. Public download endpoints (`/download/*`) and the health check (`/`) do **not** require authentication.
+All `/v1.0/*` routes require an API key. The server checks headers in this order:
 
-Provide your API key using **one** of the following methods:
+1. `x-api-key`
+2. `Authorization: Bearer <key>`
 
-### API Key Header (recommended)
+Public routes:
 
+- `/`
+- `/openapi.json`
+- `/swagger`
+- `/download/*`
+- `OPTIONS` preflight routes
+
+Example:
+
+```http
+x-api-key: mincmsadmin
 ```
-x-api-key: your-api-key
-```
 
-### Bearer Token
+## CORS And Preflight
 
-```
-Authorization: Bearer your-api-key
-```
+Every non-download route supports `OPTIONS` and returns `204 No Content` when the origin is allowed.
 
-The server checks `x-api-key` first, then falls back to `Authorization: Bearer`. Key comparison is case-sensitive.
-
-Access keys are defined in `mincms.json`:
+Default checked-in CORS policy:
 
 ```json
 {
-  "AccessKeys": [
-    { "Name": "Admin", "Key": "mincmsadmin" }
-  ]
+  "AllowedOrigins": ["*"],
+  "AllowedMethods": ["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"],
+  "AllowedHeaders": ["*"],
+  "ExposeHeaders": ["Content-Disposition", "Content-Length", "Content-Type", "ETag"],
+  "MaxAgeSeconds": 86400
 }
 ```
 
-The default key is `mincmsadmin` — change it before deploying to production.
+Behavior:
 
----
+- If `Cors` is missing or `null`, MinCMS initializes the object to the permissive defaults above.
+- Preflight responses include `Access-Control-Allow-Origin`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`, and `Access-Control-Max-Age`.
+- Normal API responses include `Access-Control-Allow-Origin` and `Access-Control-Expose-Headers` when the origin is allowed.
+- If a non-wildcard origin list is configured, MinCMS adds `Vary: Origin`.
+
+Typical preflight request:
+
+```http
+OPTIONS /v1.0/collections HTTP/1.1
+Origin: http://localhost:8300
+Access-Control-Request-Method: POST
+Access-Control-Request-Headers: x-api-key,content-type
+```
+
+Typical preflight response:
+
+```http
+HTTP/1.1 204 No Content
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET, HEAD, OPTIONS, POST, PUT, PATCH, DELETE
+Access-Control-Allow-Headers: x-api-key,content-type
+Access-Control-Max-Age: 86400
+Access-Control-Expose-Headers: Content-Disposition, Content-Length, Content-Type, ETag
+Allow: GET, HEAD, OPTIONS, POST, PUT, PATCH, DELETE
+```
 
 ## Error Responses
 
-All errors return a consistent JSON body:
+All JSON errors use this shape:
 
 ```json
 {
-  "error": "ErrorCode",
-  "statusCode": 400,
-  "message": "Human-readable error message.",
+  "error": "AuthenticationFailed",
+  "statusCode": 401,
+  "message": "Your authentication material was not accepted.",
   "context": null,
-  "description": "Additional details or exception information."
+  "description": "Authentication required."
 }
 ```
 
-### Error Codes
+Common error codes:
 
-| Error Code              | HTTP Status | Message                                                                                  |
-|-------------------------|-------------|------------------------------------------------------------------------------------------|
-| `AuthenticationFailed`  | 401         | Your authentication material was not accepted.                                           |
-| `BadRequest`            | 400         | We were unable to discern your request. Please check your URL, query, and request body.  |
-| `NotFound`              | 404         | The requested resource was not found.                                                    |
-| `Conflict`              | 409         | Operation failed as it would create a conflict with an existing resource.                |
-| `InternalError`         | 500         | An internal error has been encountered.                                                  |
-| `Timeout`               | 408         | The request was not completed within the specified timeout interval.                     |
-| `TooLarge`              | 413         | The size of your request exceeds the maximum allowed by this server.                     |
+| Error | HTTP status |
+|---|---|
+| `AuthenticationFailed` | `401` |
+| `BadRequest` | `400` |
+| `NotFound` | `404` |
+| `Conflict` | `409` |
+| `Timeout` | `408` |
+| `InternalError` | `500` |
 
-### Exception-to-Status Mapping
+Exception mapping:
 
-| Exception Type                                               | Status | Error Code     |
-|--------------------------------------------------------------|--------|----------------|
-| `ArgumentException`, `ArgumentNullException`, `FormatException`, `JsonException` | 400    | `BadRequest`   |
-| `FileNotFoundException`, `KeyNotFoundException`              | 404    | `NotFound`     |
-| `InvalidOperationException`                                  | 409    | `Conflict`     |
-| `TaskCanceledException`, `OperationCanceledException`        | 503    | `Timeout`      |
-| All other exceptions                                         | 500    | `InternalError`|
+| Exception type | Returned error |
+|---|---|
+| `ArgumentException`, `ArgumentNullException`, `ArgumentOutOfRangeException`, `FormatException`, `JsonException` | `400 BadRequest` |
+| `FileNotFoundException`, `KeyNotFoundException` | `404 NotFound` |
+| `InvalidOperationException` | `409 Conflict` |
+| `TaskCanceledException`, `OperationCanceledException` | `408 Timeout` |
+| any other exception | `500 InternalError` |
 
----
+## Route Summary
 
-## Endpoints
+### Documentation And Health
 
-### Health
-
-#### `HEAD /` — Health Check
-
-Lightweight health probe. Returns an empty response.
-
-| Detail          | Value             |
-|-----------------|-------------------|
-| Authentication  | None              |
-| Tag             | Health            |
-
-**Response**
-
-| Status | Body   |
-|--------|--------|
-| `200`  | Empty  |
-
----
-
-#### `GET /` — Root Page
-
-Returns an HTML page with the MinCMS logo confirming the server is running.
-
-| Detail          | Value             |
-|-----------------|-------------------|
-| Authentication  | None              |
-| Tag             | Health            |
-
-**Response**
-
-| Status | Content-Type | Body                       |
-|--------|-------------|----------------------------|
-| `200`  | `text/html` | HTML page with status info |
-
----
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `HEAD` | `/` | No | readiness probe |
+| `GET` | `/` | No | HTML landing page |
+| `OPTIONS` | `/` | No | CORS preflight for root |
+| `GET` | `/openapi.json` | No | generated OpenAPI JSON |
+| `OPTIONS` | `/openapi.json` | No | CORS preflight for OpenAPI |
+| `GET` | `/swagger` | No | Swagger UI |
+| `OPTIONS` | `/swagger` | No | CORS preflight for Swagger |
 
 ### Collections
 
-#### `GET /v1.0/collections` — List Collections
-
-Returns all collections.
-
-| Detail          | Value                      |
-|-----------------|----------------------------|
-| Authentication  | Required                   |
-| Tag             | Collections                |
-
-**Request**
-
-```http
-GET /v1.0/collections HTTP/1.1
-x-api-key: your-api-key
-```
-
-**Response**
-
-| Status | Content-Type       | Body                              |
-|--------|--------------------|-----------------------------------|
-| `200`  | `application/json` | Array of [Collection](#collection) objects |
-
-```json
-[
-  {
-    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "name": "Product Releases",
-    "slug": "product-releases",
-    "createdUtc": "2025-06-15T10:30:00Z",
-    "isActive": true
-  }
-]
-```
-
-**Errors:** `401`
-
----
-
-#### `POST /v1.0/collections` — Create Collection
-
-Creates a new collection.
-
-| Detail          | Value                      |
-|-----------------|----------------------------|
-| Authentication  | Required                   |
-| Tag             | Collections                |
-
-**Request**
-
-```http
-POST /v1.0/collections HTTP/1.1
-x-api-key: your-api-key
-Content-Type: application/json
-
-{
-  "name": "Product Releases",
-  "slug": "product-releases"
-}
-```
-
-| Field  | Type   | Required | Description                        |
-|--------|--------|----------|------------------------------------|
-| `name` | string | Yes      | Display name for the collection    |
-| `slug` | string | Yes      | URL-friendly identifier (unique)   |
-
-**Response**
-
-| Status | Content-Type       | Body                             |
-|--------|--------------------|----------------------------------|
-| `201`  | `application/json` | Created [Collection](#collection) object |
-
-The server auto-generates `id`, sets `createdUtc` to the current UTC time, and sets `isActive` to `true`.
-
-```json
-{
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "name": "Product Releases",
-  "slug": "product-releases",
-  "createdUtc": "2025-06-15T10:30:00Z",
-  "isActive": true
-}
-```
-
-**Errors:** `400` (missing/empty name or slug), `401`, `409` (slug already exists)
-
----
-
-#### `GET /v1.0/collections/{slug}` — Get Collection
-
-Returns a single collection by its slug.
-
-| Detail          | Value                      |
-|-----------------|----------------------------|
-| Authentication  | Required                   |
-| Tag             | Collections                |
-
-**Request**
-
-```http
-GET /v1.0/collections/product-releases HTTP/1.1
-x-api-key: your-api-key
-```
-
-| Parameter | In   | Type   | Required | Description          |
-|-----------|------|--------|----------|----------------------|
-| `slug`    | path | string | Yes      | Collection slug      |
-
-**Response**
-
-| Status | Content-Type       | Body                             |
-|--------|--------------------|----------------------------------|
-| `200`  | `application/json` | [Collection](#collection) object |
-
-**Errors:** `401`, `404` (slug not found)
-
----
-
-#### `DELETE /v1.0/collections/{slug}` — Delete Collection
-
-Deletes a collection **and all of its files** from S3.
-
-| Detail          | Value                      |
-|-----------------|----------------------------|
-| Authentication  | Required                   |
-| Tag             | Collections                |
-
-**Request**
-
-```http
-DELETE /v1.0/collections/product-releases HTTP/1.1
-x-api-key: your-api-key
-```
-
-| Parameter | In   | Type   | Required | Description          |
-|-----------|------|--------|----------|----------------------|
-| `slug`    | path | string | Yes      | Collection slug      |
-
-**Response**
-
-| Status | Body   |
-|--------|--------|
-| `204`  | Empty  |
-
-> **Warning:** This is a destructive operation. All files within the collection are permanently deleted from S3.
-
-**Errors:** `401`, `404`, `409`
-
----
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/v1.0/collections` | Yes | list collections |
+| `POST` | `/v1.0/collections` | Yes | create collection |
+| `OPTIONS` | `/v1.0/collections` | No | CORS preflight |
+| `GET` | `/v1.0/collections/{slug}` | Yes | get collection |
+| `DELETE` | `/v1.0/collections/{slug}` | Yes | delete collection |
+| `OPTIONS` | `/v1.0/collections/{slug}` | No | CORS preflight |
 
 ### Files
 
-#### `GET /v1.0/collections/{slug}/files` — List Files
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/v1.0/collections/{slug}/files` | Yes | list files |
+| `POST` | `/v1.0/collections/{slug}/files` | Yes | upload file |
+| `DELETE` | `/v1.0/collections/{slug}/files` | Yes | delete multiple files |
+| `OPTIONS` | `/v1.0/collections/{slug}/files` | No | CORS preflight |
+| `GET` | `/v1.0/collections/{slug}/files/{fileName}` | Yes | get file metadata |
+| `DELETE` | `/v1.0/collections/{slug}/files/{fileName}` | Yes | delete one file |
+| `OPTIONS` | `/v1.0/collections/{slug}/files/{fileName}` | No | CORS preflight |
 
-Returns all files in a collection.
+### Public Downloads
 
-| Detail          | Value                      |
-|-----------------|----------------------------|
-| Authentication  | Required                   |
-| Tag             | Files                      |
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/download/{slug}` | No | HTML directory listing |
+| `GET` | `/download/{slug}/sitemap.xml` | No | XML sitemap |
+| `GET` | `/download/{slug}/{fileName}` | No | binary file download |
 
-**Request**
+## Endpoint Details
 
-```http
-GET /v1.0/collections/product-releases/files HTTP/1.1
-x-api-key: your-api-key
-```
+### `HEAD /`
 
-| Parameter | In   | Type   | Required | Description          |
-|-----------|------|--------|----------|----------------------|
-| `slug`    | path | string | Yes      | Collection slug      |
+- Auth: none
+- Success: `200`
+- Body: empty
 
-**Response**
+### `GET /`
 
-| Status | Content-Type       | Body                                         |
-|--------|--------------------|----------------------------------------------|
-| `200`  | `application/json` | Array of [CollectionFile](#collectionfile) objects |
+- Auth: none
+- Success: `200`
+- Content type: `text/html`
+- Returns: a simple landing page confirming the node is online
+
+### `GET /openapi.json`
+
+- Auth: none
+- Success: `200`
+- Content type: `application/json`
+- Returns: generated OpenAPI document for all non-download routes
+
+### `GET /swagger`
+
+- Auth: none
+- Success: `200`
+- Content type: `text/html`
+- Returns: Swagger UI bound to `/openapi.json`
+
+### `GET /v1.0/collections`
+
+- Auth: required
+- Success: `200`
+- Response: array of `Collection`
+
+Example:
 
 ```json
 [
   {
-    "key": "product-releases/installer-v2.0.exe",
-    "fileName": "installer-v2.0.exe",
-    "size": 52428800,
-    "lastModifiedUtc": "2025-07-01T14:22:00Z",
-    "contentType": "application/octet-stream",
-    "eTag": "\"d41d8cd98f00b204e9800998ecf8427e\""
+    "Id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "Name": "Product Releases",
+    "Slug": "product-releases",
+    "CreatedUtc": "2026-05-14T20:00:00Z",
+    "IsActive": true
   }
 ]
 ```
 
-Returns an empty array if the collection exists but contains no files.
+### `POST /v1.0/collections`
 
-**Errors:** `401`, `404` (collection not found)
+- Auth: required
+- Success: `201`
+- Request content type: `application/json`
+- Request body: `CreateCollectionRequest`
+- Response: `Collection`
 
----
+Example request:
 
-#### `POST /v1.0/collections/{slug}/files` — Upload File
-
-Uploads a file to a collection using multipart form data.
-
-| Detail          | Value                      |
-|-----------------|----------------------------|
-| Authentication  | Required                   |
-| Tag             | Files                      |
-
-**Request**
-
-```http
-POST /v1.0/collections/product-releases/files HTTP/1.1
-x-api-key: your-api-key
-Content-Type: multipart/form-data; boundary=----FormBoundary
-
-------FormBoundary
-Content-Disposition: form-data; name="file"; filename="installer-v2.0.exe"
-Content-Type: application/octet-stream
-
-<binary file data>
-------FormBoundary--
+```json
+{
+  "Name": "Product Releases",
+  "Slug": "product-releases"
+}
 ```
 
-| Parameter | In   | Type   | Required | Description          |
-|-----------|------|--------|----------|----------------------|
-| `slug`    | path | string | Yes      | Collection slug      |
-| `file`    | body | binary | Yes      | File (multipart form field) |
+### `GET /v1.0/collections/{slug}`
 
-- The `Content-Type` header **must** include a `boundary` parameter.
-- The filename is extracted from the `Content-Disposition` header and URL-decoded.
-- If no `Content-Type` is provided for the part, it defaults to `application/octet-stream`.
-- Binary data is handled safely without encoding corruption.
+- Auth: required
+- Success: `200`
+- Response: `Collection`
+- `404` if the collection does not exist
 
-**Response**
+### `DELETE /v1.0/collections/{slug}`
 
-| Status | Content-Type       | Body                                    |
-|--------|--------------------|---------------------------------------- |
-| `201`  | `application/json` | Created [CollectionFile](#collectionfile) object |
+- Auth: required
+- Success: `204`
+- Deletes the collection and all files beneath it
 
-**Errors:** `400` (malformed multipart, missing boundary, no file), `401`, `404` (collection not found), `409` (file already exists), `413` (payload too large)
+### `GET /v1.0/collections/{slug}/files`
 
-**cURL Example**
+- Auth: required
+- Success: `200`
+- Response: array of `CollectionFile`
+
+Example:
+
+```json
+[
+  {
+    "Key": "product-releases/installer-v2.0.exe",
+    "FileName": "installer-v2.0.exe",
+    "Size": 52428800,
+    "LastModifiedUtc": "2026-05-14T20:00:00Z",
+    "ContentType": "application/octet-stream",
+    "ETag": "etag-value"
+  }
+]
+```
+
+### `POST /v1.0/collections/{slug}/files`
+
+- Auth: required
+- Success: `201`
+- Request content type: `multipart/form-data`
+- Response: `CollectionFile`
+
+The upload handler accepts standard browser and `HttpClient` multipart payloads, including filename values carried in `filename` or `filename*`.
+
+Example:
 
 ```bash
-curl -X POST "http://localhost:8100/v1.0/collections/product-releases/files" \
+curl -X POST "http://localhost:8200/v1.0/collections/product-releases/files" \
   -H "x-api-key: mincmsadmin" \
   -F "file=@./installer-v2.0.exe"
 ```
 
----
+### `GET /v1.0/collections/{slug}/files/{fileName}`
 
-#### `GET /v1.0/collections/{slug}/files/{fileName}` — Get File Metadata
+- Auth: required
+- Success: `200`
+- Response: `CollectionFile`
+- `fileName` must be URL-encoded if it contains reserved characters
 
-Returns metadata for a specific file. Does **not** return the file content — use the [download endpoint](#get-downloadslufilename--download-file) for that.
+### `DELETE /v1.0/collections/{slug}/files`
 
-| Detail          | Value                      |
-|-----------------|----------------------------|
-| Authentication  | Required                   |
-| Tag             | Files                      |
+- Auth: required
+- Success: `200`
+- Request content type: `application/json`
+- Request body: `DeleteFilesRequest`
+- Response body: `DeleteFilesResponse`
 
-**Request**
+Example request:
 
-```http
-GET /v1.0/collections/product-releases/files/installer-v2.0.exe HTTP/1.1
-x-api-key: your-api-key
-```
-
-| Parameter  | In   | Type   | Required | Description                     |
-|------------|------|--------|----------|---------------------------------|
-| `slug`     | path | string | Yes      | Collection slug                 |
-| `fileName` | path | string | Yes      | Filename (URL-encode if needed) |
-
-**Response**
-
-| Status | Content-Type       | Body                                    |
-|--------|--------------------|---------------------------------------- |
-| `200`  | `application/json` | [CollectionFile](#collectionfile) object |
-
-**Errors:** `401`, `404` (collection or file not found)
-
----
-
-#### `DELETE /v1.0/collections/{slug}/files/{fileName}` — Delete File
-
-Permanently deletes a file from S3.
-
-| Detail          | Value                      |
-|-----------------|----------------------------|
-| Authentication  | Required                   |
-| Tag             | Files                      |
-
-**Request**
-
-```http
-DELETE /v1.0/collections/product-releases/files/installer-v2.0.exe HTTP/1.1
-x-api-key: your-api-key
-```
-
-| Parameter  | In   | Type   | Required | Description                     |
-|------------|------|--------|----------|---------------------------------|
-| `slug`     | path | string | Yes      | Collection slug                 |
-| `fileName` | path | string | Yes      | Filename (URL-encode if needed) |
-
-**Response**
-
-| Status | Body   |
-|--------|--------|
-| `204`  | Empty  |
-
-**Errors:** `401`, `404`, `409`
-
----
-
-#### `DELETE /v1.0/collections/{slug}/files` — Delete Multiple Files
-
-Permanently deletes multiple files from S3 in a single request. S3 silently ignores any filenames that do not exist.
-
-| Detail          | Value                      |
-|-----------------|----------------------------|
-| Authentication  | Required                   |
-| Tag             | Files                      |
-
-**Request**
-
-```http
-DELETE /v1.0/collections/product-releases/files HTTP/1.1
-x-api-key: your-api-key
-Content-Type: application/json
-
+```json
 {
   "FileNames": [
     "installer-v1.0.exe",
-    "installer-v2.0.exe",
     "docs/readme.txt"
   ]
 }
 ```
 
-| Parameter   | In   | Type     | Required | Description                       |
-|-------------|------|----------|----------|-----------------------------------|
-| `slug`      | path | string   | Yes      | Collection slug                   |
-| `FileNames` | body | string[] | Yes      | List of filenames to delete       |
-
-**cURL Example**
+Example:
 
 ```bash
-curl -X DELETE http://localhost:8100/v1.0/collections/product-releases/files \
-  -H "x-api-key: your-api-key" \
+curl -X DELETE "http://localhost:8200/v1.0/collections/product-releases/files" \
+  -H "x-api-key: mincmsadmin" \
   -H "Content-Type: application/json" \
-  -d '{"FileNames":["installer-v1.0.exe","docs/readme.txt"]}'
+  -d "{\"FileNames\":[\"installer-v1.0.exe\",\"docs/readme.txt\"]}"
 ```
 
-**Response**
+Response:
 
-| Status | Body                                |
-|--------|-------------------------------------|
-| `200`  | `{ "DeletedCount": 2 }`            |
-
-**Errors:** `400` (empty FileNames), `401`, `404` (collection not found)
-
----
-
-### Public Downloads
-
-These endpoints are **unauthenticated** and intended for public file distribution.
-
-#### `GET /download/{slug}` — Browse Files
-
-Returns an HTML page listing all files in the collection with clickable download links.
-
-| Detail          | Value                      |
-|-----------------|----------------------------|
-| Authentication  | None                       |
-| Tag             | Downloads                  |
-
-**Request**
-
-```http
-GET /download/product-releases HTTP/1.1
+```json
+{
+  "DeletedCount": 2
+}
 ```
 
-| Parameter | In   | Type   | Required | Description          |
-|-----------|------|--------|----------|----------------------|
-| `slug`    | path | string | Yes      | Collection slug      |
+### `DELETE /v1.0/collections/{slug}/files/{fileName}`
 
-**Response**
+- Auth: required
+- Success: `204`
+- Deletes one file
 
-| Status | Content-Type | Body                                              |
-|--------|-------------|---------------------------------------------------|
-| `200`  | `text/html` | Styled HTML table with file names, sizes, and dates |
+### `GET /download/{slug}`
 
-The page displays:
-- File names as clickable download links
-- Human-readable file sizes (B, KB, MB, GB)
-- Last modified timestamps in UTC
-- Collection name and file count in the footer
+- Auth: none
+- Success: `200`
+- Content type: `text/html`
+- Returns: a browsable directory listing for the collection
 
-**Errors:** `404` (collection not found or inactive)
+### `GET /download/{slug}/sitemap.xml`
 
----
+- Auth: none
+- Success: `200`
+- Content type: `application/xml`
+- Returns: a sitemap listing each downloadable file URL
 
-#### `GET /download/{slug}/sitemap.xml` — Sitemap
+### `GET /download/{slug}/{fileName}`
 
-Returns a standard XML sitemap for SEO indexing of the collection's files.
-
-| Detail          | Value                      |
-|-----------------|----------------------------|
-| Authentication  | None                       |
-| Tag             | Downloads                  |
-
-**Request**
-
-```http
-GET /download/product-releases/sitemap.xml HTTP/1.1
-```
-
-| Parameter | In   | Type   | Required | Description          |
-|-----------|------|--------|----------|----------------------|
-| `slug`    | path | string | Yes      | Collection slug      |
-
-**Response**
-
-| Status | Content-Type      | Body                                   |
-|--------|-------------------|----------------------------------------|
-| `200`  | `application/xml` | Sitemap XML per sitemaps.org schema    |
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>/download/product-releases/installer-v2.0.exe</loc>
-    <lastmod>2025-07-01</lastmod>
-  </url>
-</urlset>
-```
-
-**Errors:** `404`
-
----
-
-#### `GET /download/{slug}/{fileName}` — Download File
-
-Streams a file directly from S3 as a browser download.
-
-| Detail          | Value                      |
-|-----------------|----------------------------|
-| Authentication  | None                       |
-| Tag             | Downloads                  |
-
-**Request**
-
-```http
-GET /download/product-releases/installer-v2.0.exe HTTP/1.1
-```
-
-| Parameter  | In   | Type   | Required | Description                     |
-|------------|------|--------|----------|---------------------------------|
-| `slug`     | path | string | Yes      | Collection slug                 |
-| `fileName` | path | string | Yes      | Filename (URL-encode if needed) |
-
-**Response**
-
-| Status | Headers                                                       | Body                |
-|--------|---------------------------------------------------------------|---------------------|
-| `200`  | `Content-Type`, `Content-Length`, `Content-Disposition`       | Binary file stream  |
-
-Response headers:
-
-| Header                | Example Value                                |
-|-----------------------|----------------------------------------------|
-| `Content-Type`        | `application/octet-stream`                   |
-| `Content-Length`      | `52428800`                                   |
-| `Content-Disposition` | `attachment; filename="installer-v2.0.exe"`  |
-
-The file is streamed directly from S3 — the server does not buffer the entire file in memory.
-
-**Errors:** `404` (collection or file not found)
-
----
+- Auth: none
+- Success: `200`
+- Returns: streamed file content
+- Expected response headers:
+  - `Content-Type`
+  - `Content-Length`
+  - `Content-Disposition`
 
 ## Data Models
 
-### Collection
-
-Represents a named group of files.
+### `Collection`
 
 ```json
 {
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "name": "Product Releases",
-  "slug": "product-releases",
-  "createdUtc": "2025-06-15T10:30:00Z",
-  "isActive": true
+  "Id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "Name": "Product Releases",
+  "Slug": "product-releases",
+  "CreatedUtc": "2026-05-14T20:00:00Z",
+  "IsActive": true
 }
 ```
 
-| Field        | Type     | Description                                 |
-|--------------|----------|---------------------------------------------|
-| `id`         | string   | UUID, auto-generated on creation            |
-| `name`       | string   | Display name                                |
-| `slug`       | string   | URL-friendly identifier, unique across the instance |
-| `createdUtc` | datetime | ISO 8601 UTC timestamp                      |
-| `isActive`   | boolean  | Whether the collection is active            |
-
-### CollectionFile
-
-Represents a file stored within a collection.
+### `CreateCollectionRequest`
 
 ```json
 {
-  "key": "product-releases/installer-v2.0.exe",
-  "fileName": "installer-v2.0.exe",
-  "size": 52428800,
-  "lastModifiedUtc": "2025-07-01T14:22:00Z",
-  "contentType": "application/octet-stream",
-  "eTag": "\"d41d8cd98f00b204e9800998ecf8427e\""
+  "Name": "Product Releases",
+  "Slug": "product-releases"
 }
 ```
 
-| Field             | Type     | Description                           |
-|-------------------|----------|---------------------------------------|
-| `key`             | string   | Full S3 object key                    |
-| `fileName`        | string   | Filename without the collection prefix|
-| `size`            | integer  | File size in bytes                    |
-| `lastModifiedUtc` | datetime | ISO 8601 UTC timestamp from S3       |
-| `contentType`     | string   | MIME type                             |
-| `eTag`            | string   | S3 ETag (useful for caching)         |
+### `CollectionFile`
 
-### DeleteFilesRequest
+```json
+{
+  "Key": "product-releases/installer-v2.0.exe",
+  "FileName": "installer-v2.0.exe",
+  "Size": 52428800,
+  "LastModifiedUtc": "2026-05-14T20:00:00Z",
+  "ContentType": "application/octet-stream",
+  "ETag": "etag-value"
+}
+```
 
-Request body for the batch file deletion endpoint.
+### `DeleteFilesRequest`
 
 ```json
 {
   "FileNames": [
     "installer-v1.0.exe",
-    "installer-v2.0.exe",
-    "docs/readme.txt"
+    "installer-v2.0.exe"
   ]
 }
 ```
 
-| Field       | Type     | Description                          |
-|-------------|----------|--------------------------------------|
-| `FileNames` | string[] | List of filenames to delete          |
-
-### DeleteFilesResponse
-
-Response body for the batch file deletion endpoint.
+### `DeleteFilesResponse`
 
 ```json
 {
-  "DeletedCount": 3
+  "DeletedCount": 2
 }
 ```
 
-| Field          | Type    | Description                        |
-|----------------|---------|------------------------------------|
-| `DeletedCount` | integer | Number of files deleted            |
-
-### ApiErrorResponse
-
-Returned for all error responses.
+### `ApiErrorResponse`
 
 ```json
 {
-  "error": "NotFound",
-  "statusCode": 404,
-  "message": "The requested resource was not found.",
-  "context": null,
-  "description": "Collection 'nonexistent' does not exist."
+  "Error": "NotFound",
+  "StatusCode": 404,
+  "Message": "The requested resource was not found.",
+  "Context": null,
+  "Description": "Collection with slug 'missing' not found."
 }
 ```
 
-| Field         | Type    | Description                                   |
-|---------------|---------|-----------------------------------------------|
-| `error`       | string  | Error code (see [Error Codes](#error-codes))  |
-| `statusCode`  | integer | HTTP status code                              |
-| `message`     | string  | Human-readable error message                  |
-| `context`     | object  | Additional context (nullable)                 |
-| `description` | string  | Detailed error information                    |
+## Postman
 
----
-
-## Quick Reference
-
-| Method   | Endpoint                                        | Auth | Status | Description             |
-|----------|-------------------------------------------------|------|--------|-------------------------|
-| `HEAD`   | `/`                                             | No   | `200`  | Health check            |
-| `GET`    | `/`                                             | No   | `200`  | Root HTML page          |
-| `GET`    | `/v1.0/collections`                             | Yes  | `200`  | List collections        |
-| `POST`   | `/v1.0/collections`                             | Yes  | `201`  | Create collection       |
-| `GET`    | `/v1.0/collections/{slug}`                      | Yes  | `200`  | Get collection          |
-| `DELETE` | `/v1.0/collections/{slug}`                      | Yes  | `204`  | Delete collection       |
-| `GET`    | `/v1.0/collections/{slug}/files`                | Yes  | `200`  | List files              |
-| `POST`   | `/v1.0/collections/{slug}/files`                | Yes  | `201`  | Upload file             |
-| `GET`    | `/v1.0/collections/{slug}/files/{fileName}`     | Yes  | `200`  | Get file metadata       |
-| `DELETE` | `/v1.0/collections/{slug}/files/{fileName}`     | Yes  | `204`  | Delete file             |
-| `DELETE` | `/v1.0/collections/{slug}/files`                | Yes  | `200`  | Delete multiple files   |
-| `GET`    | `/download/{slug}`                              | No   | `200`  | Browse files (HTML)     |
-| `GET`    | `/download/{slug}/sitemap.xml`                  | No   | `200`  | Sitemap (XML)           |
-| `GET`    | `/download/{slug}/{fileName}`                   | No   | `200`  | Download file           |
-| `GET`    | `/openapi.json`                                 | No   | `200`  | OpenAPI specification   |
-| `GET`    | `/swagger`                                      | No   | `200`  | Swagger UI              |
-
----
-
-## Notes
-
-### URL Encoding
-
-Filenames containing special characters (spaces, unicode, etc.) must be percent-encoded in the URL path. The server automatically decodes them before processing. For example, `my file.pdf` should be requested as `my%20file.pdf`.
-
-### Pagination
-
-The API does not implement pagination. All list endpoints return the complete result set. MinCMS is designed for use cases with a manageable number of collections and files per collection.
-
-### Concurrency
-
-Collection metadata mutations are serialized using a semaphore to prevent race conditions. S3 ETag-based optimistic concurrency control is used for safe concurrent writes to the configuration file stored in S3.
-
-### Content Types
-
-- All JSON endpoints return `application/json`.
-- The `Content-Type` header is set automatically on responses by the server.
-- File uploads must use `multipart/form-data` with a valid `boundary`.
-- Downloaded files carry the content type that was detected at upload time.
+The repository includes [MinCMS.postman_collection.json](MinCMS.postman_collection.json) with the default base URL set to `http://localhost:8200`.

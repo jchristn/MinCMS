@@ -1,13 +1,13 @@
 namespace MinCms.Server
 {
-    using SwiftStack.Serialization;
+    using WatsonWebserver.Core;
     using CoreSerializer = MinCms.Core.Serialization.Serializer;
 
     /// <summary>
-    /// MinCMS serializer implementation that implements SwiftStack's ISerializer interface
+    /// MinCMS serializer implementation that implements Watson's ISerializationHelper interface
     /// and uses MinCms.Core.Serialization converters.
     /// </summary>
-    public class MinCmsSerializer : ISerializer
+    public class MinCmsSerializer : ISerializationHelper
     {
         #region Private-Members
 
@@ -41,21 +41,10 @@ namespace MinCms.Server
         }
 
         /// <summary>
-        /// Deserialize bytes containing JSON to an object instance.
-        /// </summary>
-        /// <typeparam name="T">Type.</typeparam>
-        /// <param name="bytes">Bytes containing JSON.</param>
-        /// <returns>Object instance.</returns>
-        public T DeserializeJson<T>(byte[] bytes)
-        {
-            return _Serializer.DeserializeJson<T>(bytes);
-        }
-
-        /// <summary>
         /// Serialize object instance to JSON.
         /// </summary>
         /// <param name="obj">Object instance.</param>
-        /// <param name="pretty">True to enable pretty-print.</param>
+        /// <param name="pretty">True to enable pretty print.</param>
         /// <returns>JSON string.</returns>
         public string SerializeJson(object obj, bool pretty = false)
         {

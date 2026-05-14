@@ -7,148 +7,103 @@
   <a href="https://dotnet.microsoft.com/"><img src="https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet" alt=".NET 10.0"></a>
   <a href="https://react.dev/"><img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React 19"></a>
   <a href="https://docs.docker.com/compose/"><img src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" alt="Docker Compose"></a>
-  <a href="https://hub.docker.com/r/jchristn77/mincms-server"><img src="https://img.shields.io/docker/pulls/jchristn77/mincms-server?label=Server%20Pulls&logo=docker" alt="Docker Pulls"></a>
-  <a href="https://hub.docker.com/r/jchristn77/mincms-dashboard"><img src="https://img.shields.io/docker/pulls/jchristn77/mincms-dashboard?label=Dashboard%20Pulls&logo=docker" alt="Docker Pulls"></a>
 </p>
 
 # MinCMS
 
-**MinCMS** is a minimal, self-hosted content management system backed by S3-compatible storage. Upload, organize, and share files through a clean REST API and a modern React dashboard — no traditional database required.
+MinCMS is a minimal, self-hosted content management system backed by S3-compatible storage. It provides a Watson-based .NET API, a React dashboard, built-in OpenAPI/Swagger documentation, public download pages, and browser-safe CORS/preflight handling without requiring a traditional database.
 
-MinCMS stores everything (files and metadata) in any S3-compatible bucket — AWS S3, Less3, MinIO, Wasabi, Backblaze B2, and more — so you keep full control of your data.
+## Highlights
 
-## Why MinCMS?
+- S3-backed collections and file metadata with no relational database
+- Watson 7 webserver stack with key-based authentication
+- Built-in `/openapi.json` and `/swagger`
+- Documented CORS preflight support for all non-download routes
+- Public HTML download listings and download links
+- Local Docker Compose build flow for the MinCMS server and dashboard
 
-- **Simple by design** — no database, no complex setup, just S3 and go
-- **S3-compatible** — works with AWS S3, MinIO, Wasabi, Backblaze B2, and any S3-compatible provider
-- **Public download pages** — share collections of files via clean, browsable URLs
-- **API-first** — every operation is available through a straightforward REST API
-- **Modern dashboard** — manage collections and files through a responsive React UI with light/dark mode
-- **Docker-ready** — up and running in minutes with Docker Compose
-- **Multi-platform** — images available for linux/amd64 and linux/arm64
-
-## Use Cases
-
-- **File distribution** — share downloads, release artifacts, or media assets with public-facing download pages
-- **Content management** — organize files into collections for different projects, teams, or clients
-- **Digital asset management** — centralize images, documents, and media with metadata tracking
-- **Self-hosted file sharing** — a lightweight alternative to heavier CMS platforms when all you need is file management
-- **Headless CMS backend** — use the REST API to serve content to websites, apps, or CI/CD pipelines
-
-## Getting Started
+## Quick Start
 
 ### Prerequisites
 
-- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
-- An external S3-compatible storage account only if you plan to replace the bundled Less3 service
+- Docker Desktop or Docker Engine with Compose support
+- An S3-compatible backend if you do not want to use the bundled Less3 container
 
-### Quick Start with Docker Compose
+### Start the stack
 
-1. **Clone the repository**
+From the repository root:
 
-   ```bash
-   git clone https://github.com/jchristn/MinCMS.git
-   cd MinCMS/docker
-   ```
+```bash
+cd docker
+docker compose up --build -d
+```
 
-2. **Start the stack**
+The first run builds `mincms-server` from `../src` and `mincms-dashboard` from `../dashboard`. The bundled Less3 services are still pulled as images because their source is not part of this repository.
 
-   ```bash
-   docker compose up -d
-   ```
+### Default URLs
 
-3. **Access the services**
+| Service | URL |
+|---|---|
+| Less3 API | `http://localhost:8000` |
+| Less3 UI | `http://localhost:3000` |
+| MinCMS API | `http://localhost:8200` |
+| Swagger UI | `http://localhost:8200/swagger` |
+| OpenAPI JSON | `http://localhost:8200/openapi.json` |
+| MinCMS Dashboard | `http://localhost:8300` |
 
-   | Service      | URL                   |
-   |--------------|-----------------------|
-   | Less3 API    | http://localhost:8000 |
-   | Less3 UI     | http://localhost:3000 |
-   | MinCMS API   | http://localhost:8200 |
-   | MinCMS UI    | http://localhost:8300 |
+### Default API key
 
-4. **Use the bundled local storage defaults**
+The checked-in Docker config seeds one access key:
 
-   The Docker deployment is preconfigured so MinCMS uses the bundled Less3 instance as its S3-compatible backend with these defaults:
+```text
+mincmsadmin
+```
 
-   - Access key: `default`
-   - Secret key: `default`
-   - Bucket: `default`
-   - Region: `us-west-1`
-   - Endpoint inside Docker: `http://less3:8000`
-   - URL style: `PathStyle`
-   - SSL: disabled
-
-5. **Log into the dashboards**
-
-   Use `mincmsadmin` for the MinCMS dashboard API key. Less3 ships with its default seeded Docker database and can be managed through the Less3 UI on port `3000`.
-
-6. **Switching to another S3 provider**
-
-   Update the S3 values in `docker/compose.yaml` or `docker/server/mincms.json` if you want MinCMS to target AWS S3, MinIO, Wasabi, Backblaze B2, or another S3-compatible service. Changes made after the container is running require a restart (`docker compose restart mincms-server`).
-
-### Resetting the Docker Deployment
-
-From the `docker` directory, run `factory/reset.bat` on Windows or `bash factory/reset.sh` on macOS/Linux to restore the local Docker deployment to the repository factory defaults.
-
-The factory reset stops the full MinCMS and Less3 deployment, restores `docker/server/mincms.json`, `docker/dashboard/entrypoint.sh`, `docker/less3/system.json`, and the seeded `docker/less3/less3.db`, then clears the local Docker runtime directories for logs, temp files, and Less3 object storage.
-
-After reset, the stack returns to the bundled local defaults where MinCMS targets Less3 with access key `default`, secret key `default`, bucket `default`, region `us-west-1`, and path-style requests.
+Change it before using the stack anywhere outside local development.
 
 ## Architecture
 
-MinCMS consists of two services:
+| Component | Technology | Purpose |
+|---|---|---|
+| `MinCms.Server` | .NET 10 + Watson 7 | Authenticated REST API, OpenAPI, Swagger, CORS, public downloads |
+| `MinCms.Dashboard` | React 19 + nginx | Browser UI for collections and files |
+| `Less3` | S3-compatible object storage | Local default backend for files and metadata |
 
-| Component              | Technology    | Description                               |
-|------------------------|---------------|-------------------------------------------|
-| **MinCms.Server**      | .NET 10       | REST API for managing collections & files |
-| **MinCms.Dashboard**   | React 19      | Web UI for browsing and managing content  |
+All collection metadata and file content live in S3-compatible storage. MinCMS does not require a separate SQL or document database.
 
-All data — both file content and collection metadata — is stored in your S3 bucket. There is no separate database to manage, back up, or migrate.
+## API Surface
 
-```
-┌──────────────┐      ┌──────────────┐      ┌──────────────────┐
-│   Dashboard  │────> │  API Server  │────> │  S3-Compatible   │
-│  (React 19)  │      │  (.NET 10)   │      │     Storage      │
-└──────────────┘      └──────────────┘      └──────────────────┘
-     :8300                :8200              AWS / Less3 / MinIO
-```
+Authenticated API routes:
 
-## API Overview
+- `GET /v1.0/collections`
+- `POST /v1.0/collections`
+- `GET /v1.0/collections/{slug}`
+- `DELETE /v1.0/collections/{slug}`
+- `GET /v1.0/collections/{slug}/files`
+- `POST /v1.0/collections/{slug}/files`
+- `GET /v1.0/collections/{slug}/files/{fileName}`
+- `DELETE /v1.0/collections/{slug}/files`
+- `DELETE /v1.0/collections/{slug}/files/{fileName}`
 
-All API endpoints (except health checks and public downloads) require authentication via `x-api-key` header or `Authorization: Bearer <key>`.
+Public routes:
 
-### Collections
+- `HEAD /`
+- `GET /`
+- `GET /openapi.json`
+- `GET /swagger`
+- `GET /download/{slug}`
+- `GET /download/{slug}/sitemap.xml`
+- `GET /download/{slug}/{fileName}`
 
-| Method   | Endpoint                      | Description                |
-|----------|-------------------------------|----------------------------|
-| `GET`    | `/v1.0/collections`           | List all collections       |
-| `POST`   | `/v1.0/collections`           | Create a new collection    |
-| `GET`    | `/v1.0/collections/{slug}`    | Get collection details     |
-| `DELETE` | `/v1.0/collections/{slug}`    | Delete collection & files  |
+Every non-download route also accepts `OPTIONS` for browser preflight. Those preflight operations are included in the generated OpenAPI document. Dynamic download routes remain intentionally excluded from Swagger/OpenAPI.
 
-### Files
-
-| Method   | Endpoint                                      | Description          |
-|----------|-----------------------------------------------|----------------------|
-| `GET`    | `/v1.0/collections/{slug}/files`              | List files           |
-| `POST`   | `/v1.0/collections/{slug}/files`              | Upload a file        |
-| `GET`    | `/v1.0/collections/{slug}/files/{fileName}`   | Get file metadata    |
-| `DELETE` | `/v1.0/collections/{slug}/files/{fileName}`   | Delete a file        |
-| `DELETE` | `/v1.0/collections/{slug}/files`              | Delete multiple files|
-
-### Public Downloads (No Authentication)
-
-| Method   | Endpoint                            | Description                |
-|----------|-------------------------------------|----------------------------|
-| `GET`    | `/download/{slug}`                  | Browsable file listing     |
-| `GET`    | `/download/{slug}/{fileName}`       | Download a file            |
-| `GET`    | `/download/{slug}/sitemap.xml`      | XML sitemap for SEO        |
+Detailed route documentation lives in [REST_API.md](REST_API.md).
 
 ## Configuration
 
-MinCMS is configured through `mincms.json` and environment variables. Environment variables take precedence, making it easy to override settings per deployment.
+The server reads `mincms.json` on startup, then applies supported environment-variable overrides.
 
-### Settings File (mincms.json)
+### Example `mincms.json`
 
 ```json
 {
@@ -181,49 +136,94 @@ MinCMS is configured through `mincms.json` and environment variables. Environmen
     "LogFilename": "mincms.log",
     "IncludeDateInFilename": true,
     "Servers": []
+  },
+  "Cors": {
+    "AllowedOrigins": [
+      "*"
+    ],
+    "AllowedMethods": [
+      "GET",
+      "HEAD",
+      "OPTIONS",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "AllowedHeaders": [
+      "*"
+    ],
+    "ExposeHeaders": [
+      "Content-Disposition",
+      "Content-Length",
+      "Content-Type",
+      "ETag"
+    ],
+    "MaxAgeSeconds": 86400
   }
 }
 ```
 
-### Server Environment Variables
+### CORS behavior
 
-| Variable             | Overrides           | Description                          |
-|----------------------|---------------------|--------------------------------------|
-| `WEBSERVER_HOSTNAME` | `Rest.Hostname`     | Webserver listen hostname            |
-| `WEBSERVER_PORT`     | `Rest.Port`         | Webserver listen port                |
-| `S3_ACCESS_KEY`      | `S3.AccessKey`      | S3 access key                        |
-| `S3_SECRET_KEY`      | `S3.SecretKey`      | S3 secret key                        |
-| `S3_BUCKET`          | `S3.Bucket`         | S3 bucket name                       |
-| `S3_REGION`          | `S3.Region`         | AWS region                           |
-| `S3_ENDPOINT`        | `S3.EndpointUrl`    | Custom S3-compatible endpoint URL    |
-| `S3_USE_SSL`         | `S3.UseSsl`         | Use SSL for S3 (`true`/`false`)      |
-| `S3_REQUEST_STYLE`   | `S3.RequestStyle`   | `VirtualHosted` or `PathStyle`       |
+- If `Cors` is omitted or explicitly `null`, MinCMS initializes it to the permissive defaults shown above.
+- `AllowedOrigins: ["*"]` allows any origin.
+- `AllowedHeaders: ["*"]` mirrors the browser-requested headers during preflight.
+- Normal API responses also emit CORS headers, not only `OPTIONS` responses.
+- Download routes are public, but the OpenAPI document only covers non-download routes.
 
-### Dashboard Environment Variables
+### Supported server environment variables
 
-| Variable                  | Default                      | Description                   |
-|---------------------------|------------------------------|-------------------------------|
-| `MINCMS_SERVER_URL`       | `http://localhost:8200`      | Server URL for the login page |
-| `MINCMS_LOGO_FILE`        | `/assets/logo.png`           | Login page logo               |
-| `MINCMS_LOGO_NOTEXT_FILE` | `/assets/logo-no-text.png`   | Top bar logo                  |
-| `MINCMS_FAVICON_FILE`     | `/assets/logo-no-text.ico`   | Browser favicon               |
+| Variable | Overrides | Notes |
+|---|---|---|
+| `WEBSERVER_HOSTNAME` | `Rest.Hostname` | Listener hostname |
+| `WEBSERVER_PORT` | `Rest.Port` | Listener port |
+| `S3_ACCESS_KEY` | `S3.AccessKey` | S3 access key |
+| `S3_SECRET_KEY` | `S3.SecretKey` | S3 secret key |
+| `S3_BUCKET` | `S3.Bucket` | Bucket name |
+| `S3_REGION` | `S3.Region` | Region |
+| `S3_ENDPOINT` | `S3.EndpointUrl` | Custom S3 endpoint |
+| `S3_USE_SSL` | `S3.UseSsl` | `true` or `false` |
+| `S3_REQUEST_STYLE` | `S3.RequestStyle` | `VirtualHosted` or `PathStyle` |
 
-### Configuration Precedence
+Dashboard runtime config comes from these environment variables:
 
+| Variable | Default |
+|---|---|
+| `MINCMS_SERVER_URL` | `http://localhost:8200` |
+| `MINCMS_LOGO_FILE` | `/assets/logo.png` |
+| `MINCMS_LOGO_NOTEXT_FILE` | `/assets/logo-no-text.png` |
+| `MINCMS_FAVICON_FILE` | `/assets/logo-no-text.ico` |
+
+## Docker Notes
+
+- `docker/compose.yaml` builds the server and dashboard from local source.
+- The MinCMS server container exposes `8200`.
+- The dashboard container exposes `8300`.
+- The reverse-proxy example in `docker/nginx/nginx.conf` now assumes `8200` for the API upstream.
+- If you update source code and want a rebuild, run:
+
+```bash
+cd docker
+docker compose up --build -d
 ```
-Environment variable (if set and non-empty)
-  └─ overrides → mincms.json value
-                   └─ overrides → built-in default
-```
 
-## Building from Source
+### Resetting the local Docker deployment
+
+From the `docker` directory:
+
+- Windows: `factory/reset.bat`
+- macOS/Linux: `bash factory/reset.sh`
+
+That restores the checked-in factory config for the local Docker deployment, including the seeded Less3 database and the MinCMS server/dashboard runtime config.
+
+## Building From Source
 
 ### Server
 
 ```bash
-cd src/MinCms.Server
-dotnet build
-dotnet run
+dotnet build src/MinCms.sln
+dotnet run --project src/MinCms.Server
 ```
 
 ### Dashboard
@@ -234,28 +234,36 @@ npm install
 npm run dev
 ```
 
-### Docker Images
+### Local image helper scripts
 
-Multi-platform images (linux/amd64 and linux/arm64) can be built with the provided scripts:
+The repository includes two convenience scripts that build local images without pushing anything to Docker Hub:
 
 ```bash
 build-server.bat v0.1.0
 build-dashboard.bat v0.1.0
 ```
 
-## Contributing
+They produce local tags:
 
-Contributions are welcome! Here's how to get involved:
+- `mincms-server:latest`
+- `mincms-server:<tag>`
+- `mincms-dashboard:latest`
+- `mincms-dashboard:<tag>`
 
-- **Report bugs** — open an issue on the [Issues](https://github.com/jchristn/MinCMS/issues) tab
-- **Request features** — open an issue describing your idea
-- **Ask questions** — start a thread in the [Discussions](https://github.com/jchristn/MinCMS/discussions) tab
-- **Submit a PR** — fork the repo, make your changes, and open a pull request
+## Development Notes
+
+- NuGet versions are centrally managed in `src/Directory.Packages.props`.
+- The generated OpenAPI document is served from `/openapi.json`.
+- Swagger UI is served from `/swagger`.
+- Dynamic download routes are intentionally excluded from the OpenAPI document because they are public and path-driven.
+
+## Related Files
+
+- [REST_API.md](REST_API.md): route-by-route API reference
+- [MinCMS.postman_collection.json](MinCMS.postman_collection.json): Postman collection
+- [docker/compose.yaml](docker/compose.yaml): local deployment
+- [docker/server/mincms.json](docker/server/mincms.json): default server configuration
 
 ## License
 
-MinCMS is released under the [MIT License](LICENSE). You are free to use, modify, and distribute it.
-
-## Version History
-
-See [CHANGELOG.md](CHANGELOG.md) for release notes.
+MinCMS is released under the [MIT License](LICENSE).

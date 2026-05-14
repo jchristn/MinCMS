@@ -8,6 +8,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Restore dependencies
+COPY Directory.Packages.props ./
 COPY MinCms.Core/MinCms.Core.csproj MinCms.Core/
 COPY MinCms.Server/MinCms.Server.csproj MinCms.Server/
 RUN dotnet restore MinCms.Server/MinCms.Server.csproj
@@ -32,5 +33,5 @@ WORKDIR /app
 
 COPY --from=build /app/publish .
 
-EXPOSE 8100
+EXPOSE 8200
 ENTRYPOINT ["dotnet", "MinCms.Server.dll"]

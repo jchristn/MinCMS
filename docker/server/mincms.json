@@ -28,5 +28,29 @@
     "LogFilename": "mincms.log",
     "IncludeDateInFilename": true,
     "Servers": []
+  },
+  "Cors": {
+    "AllowedOrigins": [
+      "*"
+    ],
+    "AllowedMethods": [
+      "GET",
+      "HEAD",
+      "OPTIONS",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "AllowedHeaders": [
+      "*"
+    ],
+    "ExposeHeaders": [
+      "Content-Disposition",
+      "Content-Length",
+      "Content-Type",
+      "ETag"
+    ],
+    "MaxAgeSeconds": 86400
   }
 }

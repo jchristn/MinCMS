@@ -46,6 +46,15 @@ namespace MinCms.Core.Settings
             set => _Logging = value ?? throw new ArgumentNullException(nameof(Logging));
         }
 
+        /// <summary>
+        /// Cross-origin resource sharing settings.
+        /// </summary>
+        public CorsSettings Cors
+        {
+            get => _Cors;
+            set => _Cors = value ?? new CorsSettings();
+        }
+
         #endregion
 
         #region Private-Members
@@ -59,6 +68,7 @@ namespace MinCms.Core.Settings
         };
 
         private LoggingSettings _Logging = new LoggingSettings();
+        private CorsSettings _Cors = new CorsSettings();
 
         #endregion
 

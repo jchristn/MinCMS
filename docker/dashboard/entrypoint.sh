@@ -2,7 +2,7 @@
 # Generate runtime config from environment variables
 cat > /usr/share/nginx/html/runtime-config.js <<EOF
 window.__MINCMS_CONFIG__ = {
-  serverUrl: "${MINCMS_SERVER_URL:-http://localhost:8100}",
+  serverUrl: "${MINCMS_SERVER_URL:-http://localhost:8200}",
   logoFile: "${MINCMS_LOGO_FILE:-/assets/logo.png}",
   logoNoTextFile: "${MINCMS_LOGO_NOTEXT_FILE:-/assets/logo-no-text.png}",
   faviconFile: "${MINCMS_FAVICON_FILE:-/assets/logo-no-text.ico}"

@@ -21,8 +21,8 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="AWSSDK.S3" Version="4.0.0.3" />
-		<PackageReference Include="SyslogLogging" Version="2.0.13" />
+		<PackageReference Include="AWSSDK.S3" />
+		<PackageReference Include="SyslogLogging" />
 	</ItemGroup>
 
 </Project>
