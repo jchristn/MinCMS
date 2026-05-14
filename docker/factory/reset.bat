@@ -55,9 +55,6 @@ IF ERRORLEVEL 1 GOTO :Error
 
 CALL :MirrorDirectory "less3_database" "%DOCKER_DIR%\less3\db"
 IF ERRORLEVEL 1 GOTO :Error
-DEL /Q "%DOCKER_DIR%\less3\db\less3.db" >NUL 2>&1
-DEL /Q "%DOCKER_DIR%\less3\db\less3.db-shm" >NUL 2>&1
-DEL /Q "%DOCKER_DIR%\less3\db\less3.db-wal" >NUL 2>&1
 
 ECHO         Restored MinCMS and Less3 deployment files
 

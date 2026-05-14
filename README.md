@@ -39,6 +39,7 @@ docker compose up --build -d
 ```
 
 The first run builds `mincms-server` from `../src` and `mincms-dashboard` from `../dashboard`. The bundled Less3 services are still pulled as images because their source is not part of this repository.
+The compose stack also bootstraps the Less3 runtime state on container startup; when `docker/less3/db` is empty, it copies the checked-in factory Less3 database into place before Less3 starts.
 
 ### Default URLs
 
@@ -215,7 +216,7 @@ From the `docker` directory:
 - Windows: `factory/reset.bat`
 - macOS/Linux: `bash factory/reset.sh`
 
-That restores the checked-in factory config for the local Docker deployment, including the seeded Less3 database and the MinCMS server/dashboard runtime config.
+That restores the checked-in factory config for the local Docker deployment, including the default Less3 database with the bundled `default` user, credential, and bucket, plus the MinCMS server/dashboard runtime config.
 
 ## Building From Source
 

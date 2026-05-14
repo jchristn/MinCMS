@@ -6,12 +6,36 @@ services:
       - "8000:8000"
     stdin_open: true
     tty: true
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        mkdir -p /app/db /app/disk /app/logs /app/temp
+        if [ ! -f /app/db/less3.db ]; then
+          rm -f /app/db/less3.db-shm /app/db/less3.db-wal /app/db/less3.db-journal
+          cp -R /seed/db/. /app/db/
+        fi
+        if [ -z "$(ls -A /app/disk 2>/dev/null)" ]; then
+          cp -R /seed/disk/. /app/disk/
+        fi
+        if [ -z "$(ls -A /app/logs 2>/dev/null)" ]; then
+          cp -R /seed/logs/. /app/logs/
+        fi
+        if [ -z "$(ls -A /app/temp 2>/dev/null)" ]; then
+          cp -R /seed/temp/. /app/temp/
+        fi
+        exec dotnet Less3.dll
     volumes:
       - ./less3/system.json:/app/system.json
       - ./less3/db:/app/db
       - ./less3/logs:/app/logs
       - ./less3/temp:/app/temp
       - ./less3/disk:/app/disk
+      - ./factory/less3_database:/seed/db:ro
+      - ./factory/less3_disk:/seed/disk:ro
+      - ./factory/less3_logs:/seed/logs:ro
+      - ./factory/less3_temp:/seed/temp:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -s -o /dev/null -w '' http://localhost:8000 ; test $$? -ne 7"]
       interval: 5s

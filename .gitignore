@@ -25,3 +25,7 @@ Thumbs.db
 *.key
 *.crt
 .env
+
+# Docker runtime state
+docker/less3/db/*.db*
+docker/less3/disk/default/

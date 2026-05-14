@@ -80,7 +80,6 @@ restore_file "$SCRIPT_DIR/mincms_server_config/mincms.json" "$DOCKER_DIR/server/
 restore_file "$SCRIPT_DIR/mincms_dashboard_config/entrypoint.sh" "$ROOT_DIR/dashboard/docker-entrypoint.sh"
 restore_file "$SCRIPT_DIR/less3_config/system.json" "$DOCKER_DIR/less3/system.json"
 mirror_directory "$SCRIPT_DIR/less3_database" "$DOCKER_DIR/less3/db"
-rm -f "$DOCKER_DIR/less3/db/less3.db" "$DOCKER_DIR/less3/db/less3.db-shm" "$DOCKER_DIR/less3/db/less3.db-wal"
 echo "        Restored MinCMS and Less3 deployment files"
 
 echo

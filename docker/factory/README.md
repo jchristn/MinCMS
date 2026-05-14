@@ -20,6 +20,7 @@ Factory-managed content:
 Notes:
 
 - The Docker deployment is factory-configured to use the bundled Less3 service as the MinCMS S3-compatible backend.
-- Factory reset clears the local Less3 database, object storage, temp files, and logs, then restores the seeded Less3 database and MinCMS deployment files.
+- `docker/compose.yaml` bootstraps the Less3 runtime state at container start and copies `less3_database/less3.db` into `docker/less3/db` whenever that runtime directory is empty.
+- Factory reset clears the local Less3 database, object storage, temp files, and logs, then restores the default Less3 database and MinCMS deployment files.
 - The restored MinCMS S3 settings use the Less3 Docker defaults: access key `default`, secret key `default`, bucket `default`, region `us-west-1`, path-style URLs, and `http://less3:8000` for in-network access.
 - The reset scripts stop the deployment, restore the factory files, clear the local runtime directories, and leave the stack stopped so it can be started cleanly.
