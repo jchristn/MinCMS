@@ -1,5 +1,4 @@
 #!/bin/sh
-
 # Generate runtime config from environment variables
 cat > /usr/share/nginx/html/runtime-config.js <<EOF
 window.__MINCMS_CONFIG__ = {
@@ -10,7 +9,7 @@ window.__MINCMS_CONFIG__ = {
 };
 EOF
 
-# Generate nginx config for SPA routing
+# Override default nginx config to prevent caching of runtime-config.js
 cat > /etc/nginx/conf.d/default.conf <<'NGINX'
 server {
     listen 8300;
