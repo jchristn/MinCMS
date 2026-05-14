@@ -51,7 +51,7 @@ echo
 echo "  - Docker containers from docker/compose.yaml will be stopped and removed"
 echo "  - docker/server/mincms.json will be restored to the bundled Less3-backed defaults"
 echo "  - docker/dashboard/entrypoint.sh will be restored to the factory copy"
-echo "  - docker/less3/system.json and docker/less3/less3.db will be restored"
+echo "  - docker/less3/system.json and docker/less3/db will be restored"
 echo "  - docker/server/logs, docker/dashboard/logs, docker/less3/logs,"
 echo "    docker/less3/temp, and docker/less3/disk will be cleared"
 echo
@@ -78,8 +78,8 @@ echo "[2/4] Restoring factory config files..."
 restore_file "$SCRIPT_DIR/mincms_server_config/mincms.json" "$DOCKER_DIR/server/mincms.json"
 restore_file "$SCRIPT_DIR/mincms_dashboard_config/entrypoint.sh" "$DOCKER_DIR/dashboard/entrypoint.sh"
 restore_file "$SCRIPT_DIR/less3_config/system.json" "$DOCKER_DIR/less3/system.json"
-restore_file "$SCRIPT_DIR/less3_database/less3.db" "$DOCKER_DIR/less3/less3.db"
-rm -f "$DOCKER_DIR/less3/less3.db-shm" "$DOCKER_DIR/less3/less3.db-wal"
+mirror_directory "$SCRIPT_DIR/less3_database" "$DOCKER_DIR/less3/db"
+rm -f "$DOCKER_DIR/less3/less3.db" "$DOCKER_DIR/less3/less3.db-shm" "$DOCKER_DIR/less3/less3.db-wal"
 echo "        Restored MinCMS and Less3 deployment files"
 
 echo

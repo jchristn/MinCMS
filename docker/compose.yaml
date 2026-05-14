@@ -8,7 +8,7 @@ services:
     tty: true
     volumes:
       - ./less3/system.json:/app/system.json
-      - ./less3/less3.db:/app/less3.db
+      - ./less3/db:/app/db
       - ./less3/logs:/app/logs
       - ./less3/temp:/app/temp
       - ./less3/disk:/app/disk

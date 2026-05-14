@@ -12,7 +12,7 @@ Factory-managed content:
 - `mincms_server_logs` restores `docker/server/logs`
 - `mincms_dashboard_logs` restores `docker/dashboard/logs`
 - `less3_config/system.json` restores `docker/less3/system.json`
-- `less3_database/less3.db` restores `docker/less3/less3.db`
+- `less3_database` restores `docker/less3/db`
 - `less3_logs` restores `docker/less3/logs`
 - `less3_temp` restores `docker/less3/temp`
 - `less3_disk` restores `docker/less3/disk`

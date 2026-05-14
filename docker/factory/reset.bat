@@ -17,7 +17,7 @@ ECHO.
 ECHO   - Docker containers from docker\compose.yaml will be stopped and removed
 ECHO   - docker\server\mincms.json will be restored to the bundled Less3-backed defaults
 ECHO   - docker\dashboard\entrypoint.sh will be restored to the factory copy
-ECHO   - docker\less3\system.json and docker\less3\less3.db will be restored
+ECHO   - docker\less3\system.json and docker\less3\db will be restored
 ECHO   - docker\server\logs, docker\dashboard\logs, docker\less3\logs,
 ECHO     docker\less3\temp, and docker\less3\disk will be cleared
 ECHO.
@@ -52,9 +52,9 @@ IF ERRORLEVEL 1 GOTO :Error
 CALL :RestoreFile "less3_config\system.json" "%DOCKER_DIR%\less3\system.json"
 IF ERRORLEVEL 1 GOTO :Error
 
-CALL :RestoreFile "less3_database\less3.db" "%DOCKER_DIR%\less3\less3.db"
+CALL :MirrorDirectory "less3_database" "%DOCKER_DIR%\less3\db"
 IF ERRORLEVEL 1 GOTO :Error
-
+DEL /Q "%DOCKER_DIR%\less3\less3.db" >NUL 2>&1
 DEL /Q "%DOCKER_DIR%\less3\less3.db-shm" >NUL 2>&1
 DEL /Q "%DOCKER_DIR%\less3\less3.db-wal" >NUL 2>&1
 
