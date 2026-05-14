@@ -1,6 +1,6 @@
 services:
   less3:
-    image: jchristn77/less3
+    image: jchristn77/less3:v2.2.0
     container_name: less3
     ports:
       - "8000:8000"
@@ -21,7 +21,7 @@ services:
     restart: unless-stopped
 
   less3-ui:
-    image: jchristn77/less3-ui
+    image: jchristn77/less3-ui:v2.2.0
     container_name: less3-ui
     ports:
       - "3000:3000"
