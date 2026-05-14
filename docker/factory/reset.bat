@@ -4,6 +4,7 @@ SETLOCAL EnableExtensions
 SET "SCRIPT_DIR=%~dp0"
 FOR %%I IN ("%SCRIPT_DIR%.") DO SET "FACTORY_DIR=%%~fI"
 FOR %%I IN ("%SCRIPT_DIR%..") DO SET "DOCKER_DIR=%%~fI"
+FOR %%I IN ("%DOCKER_DIR%\..") DO SET "ROOT_DIR=%%~fI"
 SET "COMPOSE_MAIN=%DOCKER_DIR%\compose.yaml"
 
 ECHO.
@@ -16,7 +17,7 @@ ECHO deployment state. The following will be changed:
 ECHO.
 ECHO   - Docker containers from docker\compose.yaml will be stopped and removed
 ECHO   - docker\server\mincms.json will be restored to the bundled Less3-backed defaults
-ECHO   - docker\dashboard\entrypoint.sh will be restored to the factory copy
+ECHO   - dashboard\docker-entrypoint.sh will be restored to the factory copy
 ECHO   - docker\less3\system.json and docker\less3\db will be restored
 ECHO   - docker\server\logs, docker\dashboard\logs, docker\less3\logs,
 ECHO     docker\less3\temp, and docker\less3\disk will be cleared
@@ -46,7 +47,7 @@ ECHO [2/4] Restoring factory config files...
 CALL :RestoreFile "mincms_server_config\mincms.json" "%DOCKER_DIR%\server\mincms.json"
 IF ERRORLEVEL 1 GOTO :Error
 
-CALL :RestoreFile "mincms_dashboard_config\entrypoint.sh" "%DOCKER_DIR%\dashboard\entrypoint.sh"
+CALL :RestoreFile "mincms_dashboard_config\entrypoint.sh" "%ROOT_DIR%\dashboard\docker-entrypoint.sh"
 IF ERRORLEVEL 1 GOTO :Error
 
 CALL :RestoreFile "less3_config\system.json" "%DOCKER_DIR%\less3\system.json"
@@ -54,9 +55,9 @@ IF ERRORLEVEL 1 GOTO :Error
 
 CALL :MirrorDirectory "less3_database" "%DOCKER_DIR%\less3\db"
 IF ERRORLEVEL 1 GOTO :Error
-DEL /Q "%DOCKER_DIR%\less3\less3.db" >NUL 2>&1
-DEL /Q "%DOCKER_DIR%\less3\less3.db-shm" >NUL 2>&1
-DEL /Q "%DOCKER_DIR%\less3\less3.db-wal" >NUL 2>&1
+DEL /Q "%DOCKER_DIR%\less3\db\less3.db" >NUL 2>&1
+DEL /Q "%DOCKER_DIR%\less3\db\less3.db-shm" >NUL 2>&1
+DEL /Q "%DOCKER_DIR%\less3\db\less3.db-wal" >NUL 2>&1
 
 ECHO         Restored MinCMS and Less3 deployment files
 

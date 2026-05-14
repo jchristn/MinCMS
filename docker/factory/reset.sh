@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOCKER_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+ROOT_DIR="$(cd "$DOCKER_DIR/.." && pwd)"
 COMPOSE_MAIN="$DOCKER_DIR/compose.yaml"
 
 compose_down() {
@@ -50,7 +51,7 @@ echo "deployment state. The following will be changed:"
 echo
 echo "  - Docker containers from docker/compose.yaml will be stopped and removed"
 echo "  - docker/server/mincms.json will be restored to the bundled Less3-backed defaults"
-echo "  - docker/dashboard/entrypoint.sh will be restored to the factory copy"
+echo "  - dashboard/docker-entrypoint.sh will be restored to the factory copy"
 echo "  - docker/less3/system.json and docker/less3/db will be restored"
 echo "  - docker/server/logs, docker/dashboard/logs, docker/less3/logs,"
 echo "    docker/less3/temp, and docker/less3/disk will be cleared"
@@ -76,10 +77,10 @@ docker rm -f mincms-dashboard >/dev/null 2>&1 || true
 echo
 echo "[2/4] Restoring factory config files..."
 restore_file "$SCRIPT_DIR/mincms_server_config/mincms.json" "$DOCKER_DIR/server/mincms.json"
-restore_file "$SCRIPT_DIR/mincms_dashboard_config/entrypoint.sh" "$DOCKER_DIR/dashboard/entrypoint.sh"
+restore_file "$SCRIPT_DIR/mincms_dashboard_config/entrypoint.sh" "$ROOT_DIR/dashboard/docker-entrypoint.sh"
 restore_file "$SCRIPT_DIR/less3_config/system.json" "$DOCKER_DIR/less3/system.json"
 mirror_directory "$SCRIPT_DIR/less3_database" "$DOCKER_DIR/less3/db"
-rm -f "$DOCKER_DIR/less3/less3.db" "$DOCKER_DIR/less3/less3.db-shm" "$DOCKER_DIR/less3/less3.db-wal"
+rm -f "$DOCKER_DIR/less3/db/less3.db" "$DOCKER_DIR/less3/db/less3.db-shm" "$DOCKER_DIR/less3/db/less3.db-wal"
 echo "        Restored MinCMS and Less3 deployment files"
 
 echo

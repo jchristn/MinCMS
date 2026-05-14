@@ -8,7 +8,7 @@ This directory contains the factory-default Docker deployment state restored by:
 Factory-managed content:
 
 - `mincms_server_config/mincms.json` restores `docker/server/mincms.json`
-- `mincms_dashboard_config/entrypoint.sh` restores `docker/dashboard/entrypoint.sh`
+- `mincms_dashboard_config/entrypoint.sh` restores `dashboard/docker-entrypoint.sh`
 - `mincms_server_logs` restores `docker/server/logs`
 - `mincms_dashboard_logs` restores `docker/dashboard/logs`
 - `less3_config/system.json` restores `docker/less3/system.json`
