@@ -157,6 +157,30 @@ namespace MinCms.Server.Tests
         }
 
         [Fact]
+        public async Task Multipart_Upload_Accepts_Large_Chunked_File()
+        {
+            byte[] payload = CreatePayload((18 * 1024 * 1024) + 321);
+
+            using MultipartFormDataContent uploadContent = new MultipartFormDataContent();
+            using StreamContent fileContent = new StreamContent(new NonSeekableReadStream(payload));
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.presentationml.presentation");
+            uploadContent.Add(fileContent, "file", "presentation.pptx");
+
+            using HttpRequestMessage uploadRequest = CreateAuthenticatedRequest(HttpMethod.Post, "/v1.0/collections/alpha/files");
+            uploadRequest.Content = uploadContent;
+
+            using HttpResponseMessage uploadResponse = await _Fixture.Client.SendAsync(uploadRequest);
+            string uploadBody = await uploadResponse.Content.ReadAsStringAsync();
+            CollectionFile? uploaded = JsonSerializer.Deserialize<CollectionFile>(uploadBody, _JsonOptions);
+
+            Assert.Equal(HttpStatusCode.Created, uploadResponse.StatusCode);
+            Assert.NotNull(uploaded);
+            Assert.Equal("presentation.pptx", uploaded.FileName);
+            Assert.Equal(payload.LongLength, uploaded.Size);
+            Assert.Equal("application/vnd.openxmlformats-officedocument.presentationml.presentation", uploaded.ContentType);
+        }
+
+        [Fact]
         public async Task Public_Download_Returns_File_Content()
         {
             using HttpResponseMessage response = await _Fixture.Client.GetAsync("/download/alpha/sample.txt");
@@ -184,6 +208,18 @@ namespace MinCms.Server.Tests
             HttpRequestMessage request = new HttpRequestMessage(method, path);
             request.Headers.Add("x-api-key", "test-key");
             return request;
+        }
+
+        private static byte[] CreatePayload(int length)
+        {
+            byte[] data = new byte[length];
+
+            for (int i = 0; i < data.Length; i++)
+            {
+                data[i] = (byte)(i % 251);
+            }
+
+            return data;
         }
     }
 

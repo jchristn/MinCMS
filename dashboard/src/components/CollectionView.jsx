@@ -115,7 +115,7 @@ const CollectionView = () => {
     const items = e.dataTransfer.items;
     const dtFiles = e.dataTransfer.files;
     const directoryEntries = [];
-    const fileReadPromises = [];
+    const collected = [];
 
     if (items) {
       for (let i = 0; i < items.length; i++) {
@@ -124,31 +124,25 @@ const CollectionView = () => {
           directoryEntries.push(entry);
         } else if (dtFiles[i]) {
           const f = dtFiles[i];
-          fileReadPromises.push(
-            f.arrayBuffer().then((buf) => ({
-              file: new File([buf], f.name, { type: f.type, lastModified: f.lastModified }),
-              relativePath: f.name,
-              status: 'pending',
-              error: null,
-            }))
-          );
+          collected.push({
+            file: f,
+            relativePath: f.name,
+            status: 'pending',
+            error: null,
+          });
         }
       }
     } else {
       for (let i = 0; i < dtFiles.length; i++) {
         const f = dtFiles[i];
-        fileReadPromises.push(
-          f.arrayBuffer().then((buf) => ({
-            file: new File([buf], f.name, { type: f.type, lastModified: f.lastModified }),
-            relativePath: f.name,
-            status: 'pending',
-            error: null,
-          }))
-        );
+        collected.push({
+          file: f,
+          relativePath: f.name,
+          status: 'pending',
+          error: null,
+        });
       }
     }
-
-    const collected = await Promise.all(fileReadPromises);
 
     for (const dirEntry of directoryEntries) {
       const result = await traverseEntry(dirEntry);

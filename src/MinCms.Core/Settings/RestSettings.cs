@@ -32,12 +32,42 @@ namespace MinCms.Core.Settings
         /// </summary>
         public bool Ssl { get; set; } = false;
 
+        /// <summary>
+        /// Socket read timeout in milliseconds for inbound uploads and downloads.
+        /// </summary>
+        public int ReadTimeoutMs
+        {
+            get => _ReadTimeoutMs;
+            set => _ReadTimeoutMs = (value > 0 ? value : throw new ArgumentOutOfRangeException(nameof(ReadTimeoutMs)));
+        }
+
+        /// <summary>
+        /// Idle connection timeout in milliseconds.
+        /// </summary>
+        public int IdleTimeoutMs
+        {
+            get => _IdleTimeoutMs;
+            set => _IdleTimeoutMs = (value > 0 ? value : throw new ArgumentOutOfRangeException(nameof(IdleTimeoutMs)));
+        }
+
+        /// <summary>
+        /// Stream buffer size in bytes used by the embedded web server.
+        /// </summary>
+        public int StreamBufferSize
+        {
+            get => _StreamBufferSize;
+            set => _StreamBufferSize = (value > 0 ? value : throw new ArgumentOutOfRangeException(nameof(StreamBufferSize)));
+        }
+
         #endregion
 
         #region Private-Members
 
         private string _Hostname = "localhost";
         private int _Port = 8200;
+        private int _ReadTimeoutMs = 120000;
+        private int _IdleTimeoutMs = 600000;
+        private int _StreamBufferSize = 65536;
 
         #endregion
 

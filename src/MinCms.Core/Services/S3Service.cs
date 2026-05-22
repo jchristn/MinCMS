@@ -28,7 +28,7 @@ namespace MinCms.Core.Services
         private static string _Header = "[S3Service] ";
         private S3Settings _S3Settings = null;
         private LoggingModule _Logging = null;
-        private AmazonS3Client _S3Client = null;
+        private IS3ClientAdapter _S3Client = null;
         private Serialization.Serializer _Serializer = new Serialization.Serializer();
 
         #endregion
@@ -41,28 +41,21 @@ namespace MinCms.Core.Services
         /// <param name="s3Settings">S3 settings.</param>
         /// <param name="logging">Logging module.</param>
         public S3Service(S3Settings s3Settings, LoggingModule logging)
+            : this(s3Settings, logging, null)
+        {
+        }
+
+        /// <summary>
+        /// Instantiate using a supplied S3 client adapter.
+        /// </summary>
+        /// <param name="s3Settings">S3 settings.</param>
+        /// <param name="logging">Logging module.</param>
+        /// <param name="s3Client">S3 client adapter.</param>
+        public S3Service(S3Settings s3Settings, LoggingModule logging, IS3ClientAdapter s3Client)
         {
             _S3Settings = s3Settings ?? throw new ArgumentNullException(nameof(s3Settings));
             _Logging = logging ?? throw new ArgumentNullException(nameof(logging));
-
-            Amazon.S3.AmazonS3Config config = new Amazon.S3.AmazonS3Config();
-
-            if (!String.IsNullOrEmpty(_S3Settings.EndpointUrl))
-            {
-                config.ServiceURL = _S3Settings.EndpointUrl;
-                config.UseHttp = !_S3Settings.UseSsl;
-            }
-            else
-            {
-                config.RegionEndpoint = RegionEndpoint.GetBySystemName(_S3Settings.Region);
-            }
-
-            if (_S3Settings.RequestStyle == Settings.S3RequestStyle.PathStyle)
-            {
-                config.ForcePathStyle = true;
-            }
-
-            _S3Client = new AmazonS3Client(_S3Settings.AccessKey, _S3Settings.SecretKey, config);
+            _S3Client = s3Client ?? CreateClientAdapter(_S3Settings);
         }
 
         #endregion
@@ -224,19 +217,35 @@ namespace MinCms.Core.Services
 
             string key = slug + "/" + Uri.EscapeDataString(fileName);
             _Logging.Debug(_Header + "uploading file '" + key + "' to S3");
+            PreparedUploadSource preparedSource = null;
 
             try
             {
-                PutObjectRequest request = new PutObjectRequest
-                {
-                    BucketName = _S3Settings.Bucket,
-                    Key = key,
-                    ContentType = !String.IsNullOrEmpty(contentType) ? contentType : Constants.BinaryContentType,
-                    InputStream = content
-                };
-                ApplyCompatibilityMetadata(request);
+                preparedSource = await PrepareUploadSourceAsync(content, token).ConfigureAwait(false);
+                string resolvedContentType = !String.IsNullOrEmpty(contentType) ? contentType : Constants.BinaryContentType;
 
-                await _S3Client.PutObjectAsync(request, token).ConfigureAwait(false);
+                if (ShouldUseMultipartUpload(preparedSource.Length))
+                {
+                    await UploadFileMultipartAsync(key, preparedSource, resolvedContentType, token).ConfigureAwait(false);
+                }
+                else
+                {
+                    if (preparedSource.Stream.CanSeek)
+                    {
+                        preparedSource.Stream.Seek(preparedSource.StartPosition, SeekOrigin.Begin);
+                    }
+
+                    PutObjectRequest request = new PutObjectRequest
+                    {
+                        BucketName = _S3Settings.Bucket,
+                        Key = key,
+                        ContentType = resolvedContentType,
+                        InputStream = preparedSource.Stream
+                    };
+                    ApplyCompatibilityMetadata(request);
+
+                    await _S3Client.PutObjectAsync(request, token).ConfigureAwait(false);
+                }
 
                 _Logging.Info(_Header + "uploaded file '" + key + "' to S3");
             }
@@ -244,6 +253,10 @@ namespace MinCms.Core.Services
             {
                 _Logging.Warn(_Header + "exception uploading file '" + key + "':" + Environment.NewLine + ex.ToString());
                 throw;
+            }
+            finally
+            {
+                preparedSource?.Dispose();
             }
         }
 
@@ -493,6 +506,159 @@ namespace MinCms.Core.Services
 
         #region Private-Methods
 
+        private static IS3ClientAdapter CreateClientAdapter(S3Settings settings)
+        {
+            Amazon.S3.AmazonS3Config config = new Amazon.S3.AmazonS3Config();
+
+            if (!String.IsNullOrEmpty(settings.EndpointUrl))
+            {
+                config.ServiceURL = settings.EndpointUrl;
+                config.UseHttp = !settings.UseSsl;
+            }
+            else
+            {
+                config.RegionEndpoint = RegionEndpoint.GetBySystemName(settings.Region);
+            }
+
+            if (settings.RequestStyle == Settings.S3RequestStyle.PathStyle)
+            {
+                config.ForcePathStyle = true;
+            }
+
+            return new AwsS3ClientAdapter(new AmazonS3Client(settings.AccessKey, settings.SecretKey, config));
+        }
+
+        private async Task<PreparedUploadSource> PrepareUploadSourceAsync(Stream content, CancellationToken token)
+        {
+            if (content.CanSeek)
+            {
+                return new PreparedUploadSource(content, content.Position, content.Length - content.Position, ownsStream: false);
+            }
+
+            string tempPath = Path.Combine(Path.GetTempPath(), "mincms-s3-upload-" + Guid.NewGuid().ToString("N") + ".tmp");
+            FileStream readStream = null;
+
+            try
+            {
+                using (FileStream writeStream = new FileStream(
+                    tempPath,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None,
+                    65536,
+                    FileOptions.Asynchronous | FileOptions.SequentialScan))
+                {
+                    await content.CopyToAsync(writeStream, token).ConfigureAwait(false);
+                    await writeStream.FlushAsync(token).ConfigureAwait(false);
+                }
+
+                readStream = new FileStream(
+                    tempPath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read,
+                    65536,
+                    FileOptions.Asynchronous | FileOptions.SequentialScan | FileOptions.DeleteOnClose);
+
+                return new PreparedUploadSource(readStream, 0, readStream.Length, ownsStream: true);
+            }
+            catch
+            {
+                readStream?.Dispose();
+
+                if (File.Exists(tempPath))
+                {
+                    File.Delete(tempPath);
+                }
+
+                throw;
+            }
+        }
+
+        private bool ShouldUseMultipartUpload(long contentLength)
+        {
+            return contentLength >= _S3Settings.MultipartThresholdBytes;
+        }
+
+        private async Task UploadFileMultipartAsync(string key, PreparedUploadSource source, string contentType, CancellationToken token)
+        {
+            InitiateMultipartUploadResponse initiateResponse = null;
+
+            try
+            {
+                InitiateMultipartUploadRequest initiateRequest = new InitiateMultipartUploadRequest
+                {
+                    BucketName = _S3Settings.Bucket,
+                    Key = key,
+                    ContentType = contentType
+                };
+                ApplyCompatibilityMetadata(initiateRequest);
+
+                initiateResponse = await _S3Client.InitiateMultipartUploadAsync(initiateRequest, token).ConfigureAwait(false);
+
+                List<PartETag> partEtags = new List<PartETag>();
+                long offset = source.StartPosition;
+                long remaining = source.Length;
+                int partNumber = 1;
+
+                while (remaining > 0)
+                {
+                    long partLength = Math.Min(_S3Settings.MultipartPartSizeBytes, remaining);
+
+                    using ReadOnlySubStream partStream = new ReadOnlySubStream(source.Stream, offset, partLength, leaveOpen: true);
+                    UploadPartRequest uploadPartRequest = new UploadPartRequest
+                    {
+                        BucketName = _S3Settings.Bucket,
+                        Key = key,
+                        UploadId = initiateResponse.UploadId,
+                        PartNumber = partNumber,
+                        PartSize = partLength,
+                        InputStream = partStream
+                    };
+
+                    UploadPartResponse uploadPartResponse = await _S3Client.UploadPartAsync(uploadPartRequest, token).ConfigureAwait(false);
+                    partEtags.Add(new PartETag(partNumber, uploadPartResponse.ETag));
+
+                    offset += partLength;
+                    remaining -= partLength;
+                    partNumber++;
+                }
+
+                CompleteMultipartUploadRequest completeRequest = new CompleteMultipartUploadRequest
+                {
+                    BucketName = _S3Settings.Bucket,
+                    Key = key,
+                    UploadId = initiateResponse.UploadId,
+                    PartETags = partEtags
+                };
+
+                await _S3Client.CompleteMultipartUploadAsync(completeRequest, token).ConfigureAwait(false);
+            }
+            catch
+            {
+                if (!String.IsNullOrEmpty(initiateResponse?.UploadId))
+                {
+                    try
+                    {
+                        AbortMultipartUploadRequest abortRequest = new AbortMultipartUploadRequest
+                        {
+                            BucketName = _S3Settings.Bucket,
+                            Key = key,
+                            UploadId = initiateResponse.UploadId
+                        };
+
+                        await _S3Client.AbortMultipartUploadAsync(abortRequest, token).ConfigureAwait(false);
+                    }
+                    catch (Exception abortException)
+                    {
+                        _Logging.Warn(_Header + "exception aborting multipart upload '" + key + "':" + Environment.NewLine + abortException.ToString());
+                    }
+                }
+
+                throw;
+            }
+        }
+
         private void ApplyCompatibilityMetadata(PutObjectRequest request)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
@@ -500,6 +666,40 @@ namespace MinCms.Core.Services
             // Less3 currently fails object reads when metadata is persisted as an empty string.
             // Always sending one user-metadata entry keeps the stored value valid JSON.
             request.Metadata["mincms-origin"] = "mincms";
+        }
+
+        private void ApplyCompatibilityMetadata(InitiateMultipartUploadRequest request)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+
+            request.Metadata["mincms-origin"] = "mincms";
+        }
+
+        private sealed class PreparedUploadSource : IDisposable
+        {
+            public long Length { get; }
+
+            public bool OwnsStream { get; }
+
+            public long StartPosition { get; }
+
+            public Stream Stream { get; }
+
+            public PreparedUploadSource(Stream stream, long startPosition, long length, bool ownsStream)
+            {
+                Stream = stream ?? throw new ArgumentNullException(nameof(stream));
+                StartPosition = startPosition;
+                Length = length;
+                OwnsStream = ownsStream;
+            }
+
+            public void Dispose()
+            {
+                if (OwnsStream)
+                {
+                    Stream.Dispose();
+                }
+            }
         }
 
         #endregion

@@ -62,6 +62,9 @@ namespace MinCms.Server
             _Server = new Webserver(webserverSettings, DefaultRouteAsync);
             _Server.Serializer = new MinCmsSerializer();
             _Server.Events.Logger = msg => _Logging.Debug(_Header + msg);
+            _Server.Settings.IO.ReadTimeoutMs = _Settings.Rest.ReadTimeoutMs;
+            _Server.Settings.IO.StreamBufferSize = _Settings.Rest.StreamBufferSize;
+            _Server.Settings.Protocols.IdleTimeoutMs = _Settings.Rest.IdleTimeoutMs;
 
             _OpenApiSettings = BuildOpenApiSettings();
 
@@ -334,21 +337,33 @@ namespace MinCms.Server
                     if (String.IsNullOrEmpty(boundary))
                         throw new ArgumentException("Request must be multipart/form-data.");
 
-                    ParsedMultipartFile parsedFile = ParseMultipartFormData(req.Http.Request.DataAsBytes, boundary);
-                    if (parsedFile == null || String.IsNullOrEmpty(parsedFile.FileName) || parsedFile.FileStream == null)
-                        throw new ArgumentException("No file found in multipart form data.");
+                    Stream requestBodyStream = await ChunkedRequestBodyBuffer.CreateSeekableBodyStreamAsync(req.Http.Request, req.CancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        ParsedMultipartFile parsedFile = await MultipartFormDataFileExtractor.ExtractSingleFileAsync(requestBodyStream, boundary, req.CancellationToken).ConfigureAwait(false);
+                        if (parsedFile == null || String.IsNullOrEmpty(parsedFile.FileName) || parsedFile.FileStream == null)
+                            throw new ArgumentException("No file found in multipart form data.");
 
-                    string decodedFileName = Uri.UnescapeDataString(parsedFile.FileName);
+                        using Stream fileStream = parsedFile.FileStream;
+                        string decodedFileName = Uri.UnescapeDataString(parsedFile.FileName);
 
-                    _Logging.Debug(_Header + "upload file | key=" + keyName + " | source=" + sourceIp + " | slug=" + slug + " | file=" + decodedFileName);
+                        _Logging.Debug(_Header + "upload file | key=" + keyName + " | source=" + sourceIp + " | slug=" + slug + " | file=" + decodedFileName);
 
-                    await _CollectionService.UploadFileAsync(slug, decodedFileName, parsedFile.FileStream, parsedFile.ContentType, req.CancellationToken).ConfigureAwait(false);
-                    CollectionFile metadata = await _CollectionService.GetFileMetadataAsync(slug, decodedFileName, req.CancellationToken).ConfigureAwait(false);
+                        await _CollectionService.UploadFileAsync(slug, decodedFileName, fileStream, parsedFile.ContentType, req.CancellationToken).ConfigureAwait(false);
+                        CollectionFile metadata = await _CollectionService.GetFileMetadataAsync(slug, decodedFileName, req.CancellationToken).ConfigureAwait(false);
 
-                    _Logging.Info(_Header + "upload file | key=" + keyName + " | source=" + sourceIp + " | slug=" + slug + " | file=" + decodedFileName + " | result=Success");
+                        _Logging.Info(_Header + "upload file | key=" + keyName + " | source=" + sourceIp + " | slug=" + slug + " | file=" + decodedFileName + " | result=Success");
 
-                    req.Http.Response.StatusCode = 201;
-                    return metadata;
+                        req.Http.Response.StatusCode = 201;
+                        return metadata;
+                    }
+                    finally
+                    {
+                        if (req.Http.Request.ChunkedTransfer)
+                        {
+                            requestBodyStream.Dispose();
+                        }
+                    }
                 },
                 BuildUploadFileMetadata(),
                 auth: true);
@@ -1260,121 +1275,6 @@ namespace MinCms.Server
             }
 
             return null;
-        }
-
-        private static ParsedMultipartFile ParseMultipartFormData(byte[] bodyBytes, string boundary)
-        {
-            if (bodyBytes == null || bodyBytes.Length < 1) return null;
-
-            byte[] boundaryBytes = Encoding.UTF8.GetBytes("--" + boundary);
-            byte[] headerSeparator = Encoding.UTF8.GetBytes("\r\n\r\n");
-            byte[] crlf = Encoding.UTF8.GetBytes("\r\n");
-
-            int position = IndexOf(bodyBytes, boundaryBytes, 0);
-            if (position < 0) return null;
-
-            position += boundaryBytes.Length;
-            if (position + 2 <= bodyBytes.Length && bodyBytes[position] == 0x0D && bodyBytes[position + 1] == 0x0A)
-                position += 2;
-
-            int headerEnd = IndexOf(bodyBytes, headerSeparator, position);
-            if (headerEnd < 0) return null;
-
-            string headers = Encoding.UTF8.GetString(bodyBytes, position, headerEnd - position);
-
-            string fileName = null;
-            string fileContentType = Constants.BinaryContentType;
-
-            fileName = ExtractHeaderParameter(headers, "filename*");
-            if (!String.IsNullOrEmpty(fileName))
-            {
-                int encodingMarker = fileName.IndexOf("''", StringComparison.Ordinal);
-                if (encodingMarker >= 0 && encodingMarker + 2 < fileName.Length)
-                    fileName = fileName.Substring(encodingMarker + 2);
-            }
-
-            if (String.IsNullOrEmpty(fileName))
-                fileName = ExtractHeaderParameter(headers, "filename");
-
-            if (fileName == null) return null;
-
-            if (headers.Contains("Content-Type:", StringComparison.OrdinalIgnoreCase))
-            {
-                int start = headers.IndexOf("Content-Type:", StringComparison.OrdinalIgnoreCase) + 13;
-                int end = headers.IndexOf("\r\n", start, StringComparison.Ordinal);
-                if (end < 0) end = headers.Length;
-                fileContentType = headers.Substring(start, end - start).Trim();
-            }
-
-            int dataStart = headerEnd + headerSeparator.Length;
-            int nextBoundary = IndexOf(bodyBytes, crlf.Concat(boundaryBytes).ToArray(), dataStart);
-            int dataEnd = nextBoundary >= 0 ? nextBoundary : bodyBytes.Length;
-
-            int dataLength = Math.Max(0, dataEnd - dataStart);
-            MemoryStream fileStream = new MemoryStream(bodyBytes, dataStart, dataLength);
-
-            return new ParsedMultipartFile
-            {
-                FileName = fileName,
-                ContentType = fileContentType,
-                FileStream = fileStream
-            };
-        }
-
-        private static int IndexOf(byte[] haystack, byte[] needle, int startIndex)
-        {
-            if (needle.Length == 0 || haystack.Length == 0 || startIndex + needle.Length > haystack.Length)
-                return -1;
-
-            for (int i = startIndex; i <= haystack.Length - needle.Length; i++)
-            {
-                bool match = true;
-                for (int j = 0; j < needle.Length; j++)
-                {
-                    if (haystack[i + j] != needle[j])
-                    {
-                        match = false;
-                        break;
-                    }
-                }
-
-                if (match) return i;
-            }
-
-            return -1;
-        }
-
-        private static string ExtractHeaderParameter(string headers, string parameterName)
-        {
-            if (String.IsNullOrEmpty(headers) || String.IsNullOrEmpty(parameterName))
-                return null;
-
-            string marker = parameterName + "=";
-            int start = headers.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-            if (start < 0) return null;
-
-            start += marker.Length;
-            if (start >= headers.Length) return null;
-
-            if (headers[start] == '"')
-            {
-                start++;
-                int end = headers.IndexOf('"', start);
-                if (end > start)
-                    return headers.Substring(start, end - start);
-
-                return null;
-            }
-
-            int semicolon = headers.IndexOf(';', start);
-            int newLine = headers.IndexOf("\r\n", start, StringComparison.Ordinal);
-            int endIndex = headers.Length;
-
-            if (semicolon >= 0 && semicolon < endIndex) endIndex = semicolon;
-            if (newLine >= 0 && newLine < endIndex) endIndex = newLine;
-            if (endIndex <= start) return null;
-
-            return headers.Substring(start, endIndex - start).Trim();
         }
 
         private static string BuildDirectoryListing(Collection collection, List<CollectionFile> files)

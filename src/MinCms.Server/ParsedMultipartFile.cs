@@ -21,5 +21,10 @@ namespace MinCms.Server
         /// File content stream.
         /// </summary>
         public Stream FileStream { get; set; } = null;
+
+        /// <summary>
+        /// File content length in bytes.
+        /// </summary>
+        public long ContentLength { get; set; } = 0;
     }
 }

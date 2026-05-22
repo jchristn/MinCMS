@@ -67,6 +67,24 @@ namespace MinCms.Core.Settings
         /// </summary>
         public S3RequestStyle RequestStyle { get; set; } = S3RequestStyle.VirtualHosted;
 
+        /// <summary>
+        /// File size threshold in bytes above which MinCMS switches from PutObject to multipart upload.
+        /// </summary>
+        public long MultipartThresholdBytes
+        {
+            get => _MultipartThresholdBytes;
+            set => _MultipartThresholdBytes = (value > 0 ? value : throw new ArgumentOutOfRangeException(nameof(MultipartThresholdBytes)));
+        }
+
+        /// <summary>
+        /// Multipart upload part size in bytes. Must remain at or above the S3 minimum of 5 MiB.
+        /// </summary>
+        public long MultipartPartSizeBytes
+        {
+            get => _MultipartPartSizeBytes;
+            set => _MultipartPartSizeBytes = (value >= (5L * 1024L * 1024L) ? value : throw new ArgumentOutOfRangeException(nameof(MultipartPartSizeBytes)));
+        }
+
         #endregion
 
         #region Private-Members
@@ -76,6 +94,8 @@ namespace MinCms.Core.Settings
         private string _Bucket = "";
         private string _Region = "";
         private string _EndpointUrl = null;
+        private long _MultipartThresholdBytes = 16L * 1024L * 1024L;
+        private long _MultipartPartSizeBytes = 8L * 1024L * 1024L;
 
         #endregion
 

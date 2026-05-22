@@ -114,7 +114,7 @@ const UploadFileModal = ({ isOpen, onClose, onSubmit, initialFiles }) => {
     const items = e.dataTransfer.items;
     const dtFiles = e.dataTransfer.files;
     const directoryEntries = [];
-    const fileReadPromises = [];
+    const collected = [];
 
     if (items) {
       for (let i = 0; i < items.length; i++) {
@@ -123,35 +123,28 @@ const UploadFileModal = ({ isOpen, onClose, onSubmit, initialFiles }) => {
           directoryEntries.push(entry);
         } else if (dtFiles[i]) {
           const f = dtFiles[i];
-          // Start reading file content NOW, before the DataTransfer is cleaned up
-          fileReadPromises.push(
-            f.arrayBuffer().then((buf) => ({
-              file: new File([buf], f.name, { type: f.type, lastModified: f.lastModified }),
-              relativePath: f.name,
-              status: 'pending',
-              error: null,
-            }))
-          );
+          collected.push({
+            file: f,
+            relativePath: f.name,
+            status: 'pending',
+            error: null,
+          });
         }
       }
     } else {
       for (let i = 0; i < dtFiles.length; i++) {
         const f = dtFiles[i];
-        fileReadPromises.push(
-          f.arrayBuffer().then((buf) => ({
-            file: new File([buf], f.name, { type: f.type, lastModified: f.lastModified }),
-            relativePath: f.name,
-            status: 'pending',
-            error: null,
-          }))
-        );
+        collected.push({
+          file: f,
+          relativePath: f.name,
+          status: 'pending',
+          error: null,
+        });
       }
     }
 
     // All reads were started synchronously above — now await them
-    const collected = await Promise.all(fileReadPromises);
-
-    // Traverse directories (FileSystem API entries persist beyond the event)
+    // Traverse directories after capturing the direct file entries from the drop event.
     for (const dirEntry of directoryEntries) {
       const result = await traverseEntry(dirEntry);
       collected.push(...result);
