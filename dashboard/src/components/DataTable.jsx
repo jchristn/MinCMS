@@ -1,11 +1,39 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import './DataTable.css';
 
-const DataTable = ({ columns, data, loading, onAction, onRefresh, actions = [], onRowClick, selectable, rowKey, onSelectionChange, rowActions, isRowSelectable }) => {
+const menuTriggerIcon = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <circle cx="12" cy="5" r="1.8" />
+    <circle cx="12" cy="12" r="1.8" />
+    <circle cx="12" cy="19" r="1.8" />
+  </svg>
+);
+
+const DataTable = ({
+  columns,
+  data,
+  loading,
+  onAction,
+  onRefresh,
+  actions = [],
+  onRowClick,
+  selectable,
+  rowKey,
+  onSelectionChange,
+  rowActions,
+  isRowSelectable,
+  actionMode = 'buttons',
+  actionsHeaderLabel = 'Actions',
+}) => {
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
   const [selectedKeys, setSelectedKeys] = useState(new Set());
+  const [openMenu, setOpenMenu] = useState(null);
+  const [menuPosition, setMenuPosition] = useState(null);
   const prevSelectedRef = useRef([]);
+  const menuRef = useRef(null);
+  const isMenuMode = actionMode === 'menu';
 
   const handleSort = (key) => {
     if (sortField === key) {
@@ -69,6 +97,101 @@ const DataTable = ({ columns, data, loading, onAction, onRefresh, actions = [], 
     setSelectedKeys(new Set());
   }, [data]);
 
+  useEffect(() => {
+    setOpenMenu(null);
+    setMenuPosition(null);
+  }, [data]);
+
+  useLayoutEffect(() => {
+    if (!openMenu?.anchorEl || !menuRef.current) return undefined;
+
+    const updateMenuPosition = () => {
+      if (!openMenu.anchorEl || !menuRef.current) return;
+
+      const anchorRect = openMenu.anchorEl.getBoundingClientRect();
+      const menuRect = menuRef.current.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const margin = 12;
+      const gap = 8;
+
+      let top = anchorRect.bottom + gap;
+      let originY = 'top';
+
+      if (top + menuRect.height > viewportHeight - margin) {
+        top = anchorRect.top - menuRect.height - gap;
+        originY = 'bottom';
+      }
+
+      top = Math.max(margin, Math.min(top, viewportHeight - menuRect.height - margin));
+
+      let left = anchorRect.right - menuRect.width;
+      if (left < margin) {
+        left = anchorRect.left;
+      }
+      left = Math.max(margin, Math.min(left, viewportWidth - menuRect.width - margin));
+
+      setMenuPosition({ top, left, originY });
+    };
+
+    updateMenuPosition();
+    window.addEventListener('resize', updateMenuPosition);
+    window.addEventListener('scroll', updateMenuPosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition);
+      window.removeEventListener('scroll', updateMenuPosition, true);
+    };
+  }, [openMenu]);
+
+  useEffect(() => {
+    if (!openMenu?.anchorEl) return undefined;
+
+    const handlePointerDown = (event) => {
+      const target = event.target;
+      if (menuRef.current?.contains(target) || openMenu.anchorEl.contains(target)) return;
+      setOpenMenu(null);
+      setMenuPosition(null);
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setOpenMenu(null);
+        setMenuPosition(null);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [openMenu]);
+
+  const renderActionIcon = (action, row) => {
+    return typeof action.icon === 'function' ? action.icon(row) : (action.icon || action.label);
+  };
+
+  const handleMenuToggle = (event, key, row, rowActs) => {
+    event.stopPropagation();
+
+    if (openMenu?.key === key) {
+      setOpenMenu(null);
+      setMenuPosition(null);
+      return;
+    }
+
+    setOpenMenu({
+      key,
+      row,
+      rowActs,
+      anchorEl: event.currentTarget,
+    });
+    setMenuPosition(null);
+  };
+
   const extraCols = (selectable ? 1 : 0) + (actions.length > 0 ? 1 : 0);
 
   return (
@@ -106,7 +229,7 @@ const DataTable = ({ columns, data, loading, onAction, onRefresh, actions = [], 
                   )}
                 </th>
               ))}
-              {actions.length > 0 && <th className="dt-actions-header">Actions</th>}
+              {actions.length > 0 && <th className="dt-actions-header">{actionsHeaderLabel}</th>}
             </tr>
           </thead>
           <tbody>
@@ -157,16 +280,33 @@ const DataTable = ({ columns, data, loading, onAction, onRefresh, actions = [], 
                     ))}
                     {actions.length > 0 && (
                       <td className="dt-actions-cell">
-                        {rowActs.map((action) => (
-                          <button
-                            key={action.name}
-                            className={`btn btn-sm ${action.className || 'btn-secondary'}`}
-                            onClick={(e) => { e.stopPropagation(); onAction && onAction(action.name, row); }}
-                            title={action.label}
-                          >
-                            {typeof action.icon === 'function' ? action.icon(row) : (action.icon || action.label)}
-                          </button>
-                        ))}
+                        {isMenuMode ? (
+                          rowActs.length > 0 ? (
+                            <button
+                              type="button"
+                              className={`dt-actions-menu-trigger${openMenu?.key === key ? ' is-open' : ''}`}
+                              onClick={(event) => handleMenuToggle(event, key, row, rowActs)}
+                              aria-haspopup="menu"
+                              aria-expanded={openMenu?.key === key}
+                              aria-label={`Open ${actionsHeaderLabel.toLowerCase()} menu`}
+                            >
+                              {menuTriggerIcon}
+                            </button>
+                          ) : (
+                            <span className="dt-actions-empty">-</span>
+                          )
+                        ) : (
+                          rowActs.map((action) => (
+                            <button
+                              key={action.name}
+                              className={`btn btn-sm ${action.className || 'btn-secondary'}`}
+                              onClick={(e) => { e.stopPropagation(); onAction && onAction(action.name, row); }}
+                              title={action.label}
+                            >
+                              {renderActionIcon(action, row)}
+                            </button>
+                          ))
+                        )}
                       </td>
                     )}
                   </tr>
@@ -176,6 +316,34 @@ const DataTable = ({ columns, data, loading, onAction, onRefresh, actions = [], 
           </tbody>
         </table>
       </div>
+      {isMenuMode && openMenu && menuPosition && createPortal(
+        <div
+          ref={menuRef}
+          className="dt-context-menu"
+          style={{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }}
+          data-origin-y={menuPosition.originY}
+          role="menu"
+        >
+          {openMenu.rowActs.map((action) => (
+            <button
+              key={action.name}
+              type="button"
+              className={`dt-context-menu-item${action.className?.includes('danger') ? ' is-danger' : ''}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                setOpenMenu(null);
+                setMenuPosition(null);
+                onAction && onAction(action.name, openMenu.row);
+              }}
+              role="menuitem"
+            >
+              <span className="dt-context-menu-icon">{renderActionIcon(action, openMenu.row)}</span>
+              <span className="dt-context-menu-label">{action.label}</span>
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

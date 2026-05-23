@@ -8,7 +8,7 @@ import UploadFileModal, { traverseEntry } from './modals/UploadFileModal.jsx';
 import DeleteConfirmModal from './modals/DeleteConfirmModal.jsx';
 import ViewMetadataModal from './modals/ViewMetadataModal.jsx';
 import AlertModal from './modals/AlertModal.jsx';
-import EditTextContentModal, { isEditableTextFile } from './modals/EditTextContentModal.jsx';
+import EditTextContentModal, { isEditableTextFile, isViewableTextFile } from './modals/EditTextContentModal.jsx';
 import './CollectionView.css';
 
 const CollectionView = () => {
@@ -34,6 +34,7 @@ const CollectionView = () => {
   const [textEditorOpen, setTextEditorOpen] = useState(false);
   const [editorFile, setEditorFile] = useState(null);
   const [editorInitialPath, setEditorInitialPath] = useState('');
+  const [editorMode, setEditorMode] = useState('edit');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -220,15 +221,17 @@ const CollectionView = () => {
     }
   };
 
-  const handleOpenTextEditor = (file) => {
+  const handleOpenTextEditor = (file, mode = 'edit') => {
     setEditorFile(file);
     setEditorInitialPath(file?._fullPath || file?.FileName || currentPrefix);
+    setEditorMode(mode);
     setTextEditorOpen(true);
   };
 
   const handleOpenNewTextFile = () => {
     setEditorFile(null);
     setEditorInitialPath(currentPrefix);
+    setEditorMode('edit');
     setTextEditorOpen(true);
   };
 
@@ -236,6 +239,7 @@ const CollectionView = () => {
     setTextEditorOpen(false);
     setEditorFile(null);
     setEditorInitialPath('');
+    setEditorMode('edit');
   };
 
   const handleTextEditorSaved = async () => {
@@ -244,19 +248,24 @@ const CollectionView = () => {
   };
 
   const handleAction = (action, file) => {
-    setSelectedFile(file);
-    if (action === 'edit') {
-      handleOpenTextEditor(file);
+    if (action === 'view') {
+      handleOpenTextEditor(file, 'view');
+    } else if (action === 'edit') {
+      handleOpenTextEditor(file, 'edit');
     } else if (action === 'delete') {
+      setSelectedFile(file);
       setDeleteModalOpen(true);
     } else if (action === 'metadata') {
       handleViewMetadata(file);
     } else if (action === 'download') {
       const url = apiClient.getDownloadUrl(slug, file._fullPath || file.FileName);
-      window.open(url, '_blank');
-    } else if (action === 'copy') {
-      const url = apiClient.getDownloadUrl(slug, file._fullPath || file.FileName);
-      navigator.clipboard.writeText(url).catch(() => {});
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = (file._fullPath || file.FileName || '').split('/').pop() || 'download';
+      link.rel = 'noopener';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
     }
   };
 
@@ -320,6 +329,13 @@ const CollectionView = () => {
     icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
   };
 
+  const viewAction = {
+    name: 'view',
+    label: 'View',
+    className: 'btn-secondary',
+    icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+  };
+
   const editAction = {
     name: 'edit',
     label: 'Edit',
@@ -328,6 +344,7 @@ const CollectionView = () => {
   };
 
   const actions = [
+    viewAction,
     editAction,
     {
       name: 'download',
@@ -337,7 +354,7 @@ const CollectionView = () => {
     },
     {
       name: 'metadata',
-      label: 'Metadata',
+      label: 'View Metadata',
       className: 'btn-secondary',
       icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
     },
@@ -411,12 +428,18 @@ const CollectionView = () => {
           onAction={handleAction}
           onRefresh={fetchData}
           actions={actions}
+          actionMode="menu"
+          actionsHeaderLabel="Context"
           selectable
           rowKey="_rowKey"
           rowActions={(row) => {
             if (row._isParent) return [];
             if (row._isFolder) return folderActions;
-            return isEditableTextFile(row) ? actions : actions.filter((action) => action.name !== 'edit');
+            return actions.filter((action) => {
+              if (action.name === 'view') return isViewableTextFile(row);
+              if (action.name === 'edit') return isEditableTextFile(row);
+              return true;
+            });
           }}
           isRowSelectable={(row) => !row._isParent}
           onSelectionChange={setSelectedFiles}
@@ -461,6 +484,7 @@ const CollectionView = () => {
         file={editorFile}
         existingFiles={files}
         initialPath={editorInitialPath}
+        mode={editorMode}
         onClose={handleCloseTextEditor}
         onSaved={handleTextEditorSaved}
       />

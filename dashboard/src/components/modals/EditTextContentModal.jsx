@@ -5,6 +5,7 @@ import { copyToClipboard } from '../CopyableUrl.jsx';
 import './EditTextContentModal.css';
 
 export const MAX_EDITABLE_TEXT_BYTES = 1024 * 1024;
+export const MAX_VIEWABLE_TEXT_BYTES = 5 * 1024 * 1024;
 
 const TEXT_FILE_EXTENSIONS = new Set([
   '.txt',
@@ -145,7 +146,18 @@ export const isEditableTextFile = (file) => {
 
   const filePath = normalizeTextFilePath(getFilePath(file));
   if (!filePath) return false;
-  if ((file.Size ?? 0) > MAX_EDITABLE_TEXT_BYTES) return false;
+  if (!isViewableTextFile(file)) return false;
+  return (file.Size ?? 0) <= MAX_EDITABLE_TEXT_BYTES;
+};
+
+export const isViewableTextFile = (file) => {
+  if (!file || file._isFolder) return false;
+
+  const filePath = normalizeTextFilePath(getFilePath(file));
+  if (!filePath) return false;
+  if ((file.Size ?? 0) > MAX_VIEWABLE_TEXT_BYTES) return false;
+
+  if (isTextualContentType(file.ContentType)) return true;
 
   const leafName = getLeafName(filePath).toLowerCase();
   const extension = getExtension(filePath);
@@ -179,10 +191,12 @@ const EditTextContentModal = ({
   file,
   existingFiles = [],
   initialPath = '',
+  mode = 'edit',
   onClose,
   onSaved,
 }) => {
   const isExistingFile = Boolean(file);
+  const isReadOnly = mode === 'view';
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [filePath, setFilePath] = useState('');
@@ -263,6 +277,8 @@ const EditTextContentModal = ({
   });
 
   const validate = () => {
+    if (isReadOnly) return true;
+
     if (!normalizedPath) {
       setError('File path is required.');
       return false;
@@ -290,7 +306,7 @@ const EditTextContentModal = ({
   const closeEditor = () => {
     if (loading || saving) return;
 
-    if (isDirty && !window.confirm('Discard unsaved changes?')) {
+    if (!isReadOnly && isDirty && !window.confirm('Discard unsaved changes?')) {
       return;
     }
 
@@ -325,6 +341,7 @@ const EditTextContentModal = ({
   };
 
   const requestSave = () => {
+    if (isReadOnly) return;
     if (!validate()) return;
 
     if (isExistingFile || saveTargetExists) {
@@ -345,11 +362,14 @@ const EditTextContentModal = ({
     }
   };
 
-  const modalTitle = isExistingFile ? 'Edit Text File' : 'New Text File';
+  const modalTitle = isReadOnly ? 'View Text File' : (isExistingFile ? 'Edit Text File' : 'New Text File');
   const saveActionLabel = isExistingFile || saveTargetExists ? 'Save Anyway' : (isExistingFile ? 'Save' : 'Create File');
-  const helperText = isExistingFile
-    ? 'Saving replaces the current object contents using the existing upload API.'
-    : 'Create a new text file in the current collection. Use forward slashes for folders.';
+  const sizeLimitBytes = isReadOnly ? MAX_VIEWABLE_TEXT_BYTES : MAX_EDITABLE_TEXT_BYTES;
+  const helperText = isReadOnly
+    ? 'Preview text content in read-only mode.'
+    : (isExistingFile
+      ? 'Saving replaces the current object contents using the existing upload API.'
+      : 'Create a new text file in the current collection. Use forward slashes for folders.');
 
   return (
     <>
@@ -368,15 +388,15 @@ const EditTextContentModal = ({
                 {bodyCopied ? 'Copied' : 'Copy Body'}
               </button>
               <span className={`edit-text-dirty${isDirty ? ' is-dirty' : ''}`}>
-                {isDirty ? 'Unsaved changes' : 'Saved'}
+                {isReadOnly ? 'Read only' : (isDirty ? 'Unsaved changes' : 'Saved')}
               </span>
             </div>
           </div>
 
           <div className="edit-text-modal-grid">
             <div className="form-group">
-              <label htmlFor="edit-text-file-path">{isExistingFile ? 'Filename' : 'Filename'}</label>
-              {isExistingFile ? (
+              <label htmlFor="edit-text-file-path">Filename</label>
+              {isExistingFile || isReadOnly ? (
                 <div className="edit-text-meta-value edit-text-file-display" title={normalizedPath}>
                   {normalizedPath}
                 </div>
@@ -401,7 +421,7 @@ const EditTextContentModal = ({
 
           <div className="edit-text-modal-meta">
             <span>Size: {loading ? 'Loading...' : formatSize(contentBytes)}</span>
-            <span>Limit: {formatSize(MAX_EDITABLE_TEXT_BYTES)}</span>
+            <span>Limit: {formatSize(sizeLimitBytes)}</span>
             {metadata?.LastModifiedUtc && (
               <span>Last Modified: {new Date(metadata.LastModifiedUtc).toLocaleString()}</span>
             )}
@@ -425,6 +445,7 @@ const EditTextContentModal = ({
               value={content}
               onChange={(e) => setContent(e.target.value)}
               disabled={loading || saving}
+              readOnly={isReadOnly}
               spellCheck={false}
               wrap="off"
               placeholder={loading ? 'Loading file contents...' : 'Enter text content...'}
@@ -433,35 +454,39 @@ const EditTextContentModal = ({
 
           <div className="form-actions">
             <button type="button" className="btn btn-secondary" onClick={closeEditor} disabled={loading || saving}>
-              Cancel
+              {isReadOnly ? 'Close' : 'Cancel'}
             </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={requestSave}
-              disabled={loading || saving || !isDirty}
-            >
-              {saving ? 'Saving...' : saveActionLabel}
-            </button>
+            {!isReadOnly && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={requestSave}
+                disabled={loading || saving || !isDirty}
+              >
+                {saving ? 'Saving...' : saveActionLabel}
+              </button>
+            )}
           </div>
         </div>
       </Modal>
 
-      <DeleteConfirmModal
-        isOpen={saveConfirmOpen}
-        onClose={() => setSaveConfirmOpen(false)}
-        onConfirm={persistFile}
-        title="Confirm Save"
-        actionLabel={saveTargetExists && !isExistingFile ? 'Overwrite' : 'Save'}
-        entityName={normalizedPath}
-        entityType="file"
-        message={
-          saveTargetExists && !isExistingFile
-            ? 'A file already exists at this path. Saving will overwrite the current object contents.'
-            : 'Saving will replace the current object contents in S3. External changes made after you opened this file will be lost.'
-        }
-        warningMessage="Review the path and content before continuing."
-      />
+      {!isReadOnly && (
+        <DeleteConfirmModal
+          isOpen={saveConfirmOpen}
+          onClose={() => setSaveConfirmOpen(false)}
+          onConfirm={persistFile}
+          title="Confirm Save"
+          actionLabel={saveTargetExists && !isExistingFile ? 'Overwrite' : 'Save'}
+          entityName={normalizedPath}
+          entityType="file"
+          message={
+            saveTargetExists && !isExistingFile
+              ? 'A file already exists at this path. Saving will overwrite the current object contents.'
+              : 'Saving will replace the current object contents in S3. External changes made after you opened this file will be lost.'
+          }
+          warningMessage="Review the path and content before continuing."
+        />
+      )}
     </>
   );
 };
