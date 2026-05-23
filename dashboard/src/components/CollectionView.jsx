@@ -429,7 +429,7 @@ const CollectionView = () => {
           onRefresh={fetchData}
           actions={actions}
           actionMode="menu"
-          actionsHeaderLabel="Context"
+          actionsHeaderLabel="Actions"
           selectable
           rowKey="_rowKey"
           rowActions={(row) => {

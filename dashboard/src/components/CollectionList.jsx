@@ -130,7 +130,7 @@ const CollectionList = () => {
         onRefresh={fetchCollections}
         actions={actions}
         actionMode="menu"
-        actionsHeaderLabel="Context"
+        actionsHeaderLabel="Actions"
         onRowClick={(collection) => navigate('/dashboard/collection/' + collection.Slug)}
       />
 
