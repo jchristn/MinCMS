@@ -5,7 +5,7 @@ import DataTable from './DataTable.jsx';
 import CreateCollectionModal from './modals/CreateCollectionModal.jsx';
 import DeleteConfirmModal from './modals/DeleteConfirmModal.jsx';
 import AlertModal from './modals/AlertModal.jsx';
-import { SitemapCopyIcon } from './CopyableUrl.jsx';
+import { copyToClipboard } from './CopyableUrl.jsx';
 import './CollectionList.css';
 
 const CollectionList = () => {
@@ -65,6 +65,8 @@ const CollectionList = () => {
     setSelectedCollection(collection);
     if (action === 'enter') {
       navigate('/dashboard/collection/' + collection.Slug);
+    } else if (action === 'sitemap') {
+      copyToClipboard(`${apiClient.baseUrl}/download/${collection.Slug}/sitemap.xml`).catch(() => {});
     } else if (action === 'delete') {
       setDeleteModalOpen(true);
     }
@@ -98,7 +100,7 @@ const CollectionList = () => {
       name: 'sitemap',
       label: 'Sitemap',
       className: 'btn-secondary',
-      icon: (row) => <SitemapCopyIcon url={`${apiClient.baseUrl}/download/${row.Slug}/sitemap.xml`} />
+      icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
     },
     {
       name: 'delete',
@@ -127,6 +129,8 @@ const CollectionList = () => {
         onAction={handleAction}
         onRefresh={fetchCollections}
         actions={actions}
+        actionMode="menu"
+        actionsHeaderLabel="Context"
         onRowClick={(collection) => navigate('/dashboard/collection/' + collection.Slug)}
       />
 

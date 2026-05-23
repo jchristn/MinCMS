@@ -316,12 +316,14 @@ const DataTable = ({
           </tbody>
         </table>
       </div>
-      {isMenuMode && openMenu && menuPosition && createPortal(
+      {isMenuMode && openMenu && createPortal(
         <div
           ref={menuRef}
           className="dt-context-menu"
-          style={{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }}
-          data-origin-y={menuPosition.originY}
+          style={menuPosition
+            ? { top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }
+            : { top: '0px', left: '0px', visibility: 'hidden' }}
+          data-origin-y={menuPosition?.originY || 'top'}
           role="menu"
         >
           {openMenu.rowActs.map((action) => (
