@@ -6,12 +6,14 @@ import CollectionView from './CollectionView.jsx';
 import './App.css';
 
 const PrivateRoute = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthReady, isAuthenticated } = useAuth();
+  if (!isAuthReady) return null;
   return isAuthenticated ? children : <Navigate to="/" />;
 };
 
 const PublicRoute = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthReady, isAuthenticated } = useAuth();
+  if (!isAuthReady) return null;
   return !isAuthenticated ? children : <Navigate to="/dashboard" />;
 };
 

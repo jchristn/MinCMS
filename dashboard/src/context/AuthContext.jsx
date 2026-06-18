@@ -12,6 +12,7 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [apiClient, setApiClient] = useState(null);
   const [serverUrl, setServerUrl] = useState(window.__MINCMS_CONFIG__?.serverUrl || 'http://localhost:8200');
@@ -35,6 +36,8 @@ export const AuthProvider = ({ children }) => {
       setTheme(savedTheme);
       document.body.setAttribute('data-theme', savedTheme);
     }
+
+    setIsAuthReady(true);
   }, []);
 
   const login = async (url, key) => {
@@ -67,6 +70,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const value = {
+    isAuthReady,
     isAuthenticated,
     apiClient,
     serverUrl,
