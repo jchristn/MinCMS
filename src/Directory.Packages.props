@@ -5,10 +5,16 @@
 
   <ItemGroup>
     <PackageVersion Include="AWSSDK.S3" Version="4.0.23.1" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageVersion Include="SyslogLogging" Version="2.1.0" />
     <PackageVersion Include="Watson" Version="7.0.14" />
-    <PackageVersion Include="xunit" Version="2.9.2" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <PackageVersion Include="NUnit" Version="4.3.2" />
+    <PackageVersion Include="NUnit3TestAdapter" Version="5.0.0" />
+    <PackageVersion Include="Touchstone.Core" Version="0.1.12" />
+    <PackageVersion Include="Touchstone.Cli" Version="0.1.12" />
+    <PackageVersion Include="Touchstone.XunitAdapter" Version="0.1.12" />
+    <PackageVersion Include="Touchstone.NunitAdapter" Version="0.1.12" />
   </ItemGroup>
 </Project>

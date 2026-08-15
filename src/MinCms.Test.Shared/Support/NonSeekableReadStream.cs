@@ -1,39 +1,52 @@
-namespace MinCms.Server.Tests
+namespace MinCms.Test.Shared.Support
 {
     using System;
     using System.IO;
     using System.Threading;
     using System.Threading.Tasks;
 
-    internal sealed class NonSeekableReadStream : Stream
+    /// <summary>
+    /// Forward-only, non-seekable stream over an in-memory buffer.
+    /// Used to exercise streaming code paths that cannot rely on Length or Seek.
+    /// </summary>
+    public sealed class NonSeekableReadStream : Stream
     {
         private readonly byte[] _Data;
         private int _Position;
 
+        /// <inheritdoc />
         public override bool CanRead => true;
 
+        /// <inheritdoc />
         public override bool CanSeek => false;
 
+        /// <inheritdoc />
         public override bool CanWrite => false;
 
+        /// <inheritdoc />
         public override long Length => throw new NotSupportedException();
 
+        /// <inheritdoc />
         public override long Position
         {
             get => _Position;
             set => throw new NotSupportedException();
         }
 
+        /// <summary>Instantiate over a byte buffer.</summary>
+        /// <param name="data">Backing buffer.</param>
         public NonSeekableReadStream(byte[] data)
         {
             _Data = data ?? throw new ArgumentNullException(nameof(data));
             _Position = 0;
         }
 
+        /// <inheritdoc />
         public override void Flush()
         {
         }
 
+        /// <inheritdoc />
         public override int Read(byte[] buffer, int offset, int count)
         {
             if (buffer == null) throw new ArgumentNullException(nameof(buffer));
@@ -45,6 +58,7 @@ namespace MinCms.Server.Tests
             return read;
         }
 
+        /// <inheritdoc />
         public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -58,25 +72,20 @@ namespace MinCms.Server.Tests
             return read;
         }
 
+        /// <inheritdoc />
         public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(Read(buffer, offset, count));
         }
 
-        public override long Seek(long offset, SeekOrigin origin)
-        {
-            throw new NotSupportedException();
-        }
+        /// <inheritdoc />
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
 
-        public override void SetLength(long value)
-        {
-            throw new NotSupportedException();
-        }
+        /// <inheritdoc />
+        public override void SetLength(long value) => throw new NotSupportedException();
 
-        public override void Write(byte[] buffer, int offset, int count)
-        {
-            throw new NotSupportedException();
-        }
+        /// <inheritdoc />
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 }

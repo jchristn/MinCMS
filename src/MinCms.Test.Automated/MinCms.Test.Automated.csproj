@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<OutputType>Exe</OutputType>
+		<ImplicitUsings>disable</ImplicitUsings>
+		<Nullable>disable</Nullable>
+		<IsPackable>false</IsPackable>
+		<GenerateDocumentationFile>false</GenerateDocumentationFile>
+		<NoWarn>1701;1702;CS1998</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Touchstone.Cli" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\MinCms.Test.Shared\MinCms.Test.Shared.csproj" />
+	</ItemGroup>
+
+</Project>
