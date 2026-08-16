@@ -4,14 +4,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageVersion Include="AWSSDK.S3" Version="4.0.23.1" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
-    <PackageVersion Include="SyslogLogging" Version="2.1.0" />
-    <PackageVersion Include="Watson" Version="7.0.14" />
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.102.1" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+    <PackageVersion Include="SyslogLogging" Version="2.2.1" />
+    <PackageVersion Include="Watson" Version="7.1.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
-    <PackageVersion Include="NUnit" Version="4.3.2" />
-    <PackageVersion Include="NUnit3TestAdapter" Version="5.0.0" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
+    <PackageVersion Include="NUnit" Version="4.6.1" />
+    <PackageVersion Include="NUnit3TestAdapter" Version="6.2.0" />
     <PackageVersion Include="Touchstone.Core" Version="0.1.12" />
     <PackageVersion Include="Touchstone.Cli" Version="0.1.12" />
     <PackageVersion Include="Touchstone.XunitAdapter" Version="0.1.12" />

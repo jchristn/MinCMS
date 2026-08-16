@@ -1,0 +1,20 @@
+<Project>
+
+  <!--
+    The AWSSDK.S3 Roslyn analyzer (AWSSDK.S3.CodeAnalysis / SharedAnalysisCode) crashes
+    the C# compiler (csc exits with no diagnostic) when analyzing the S3 adapter and
+    mocking code used by MinCms.Core and the test projects. The crash reproduces on both
+    AWSSDK.S3 4.0.23.1 and 4.0.102.1, and the analyzer flows transitively into every
+    project that references MinCms.Core. It only emits build-time AWS best-practice hints
+    and has no effect on produced binaries, so we strip it from every compilation here.
+
+    Remove this target once AWSSDK ships an analyzer build that no longer crashes.
+  -->
+  <Target Name="RemoveCrashingAwsAnalyzers" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <Analyzer Remove="@(Analyzer)"
+                Condition="$([System.String]::Copy('%(Analyzer.Filename)').StartsWith('AWSSDK')) Or '%(Analyzer.Filename)' == 'SharedAnalysisCode'" />
+    </ItemGroup>
+  </Target>
+
+</Project>

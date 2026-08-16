@@ -115,6 +115,46 @@ namespace MinCms.Test.Shared
                     Check.True(files.Any(f => f.FileName == "my file.txt"), "Listing should unescape the file name");
                 }),
 
+                Case(s, "Upload.AtThresholdUsesMultipart", "A stream exactly at the multipart threshold uses multipart", async () =>
+                {
+                    FakeS3ClientAdapter client = new FakeS3ClientAdapter();
+                    S3Service service = new S3Service(CreateS3Settings(), QuietLogging(), client);
+                    byte[] payload = CreatePayload((int)(5L * 1024L * 1024L));
+
+                    await service.UploadFileAsync("alpha", "edge.bin", new MemoryStream(payload, writable: false), "application/octet-stream");
+
+                    Check.Equal(0, client.PutObjectCalls.Count);
+                    Check.Equal(1, client.InitiateMultipartUploadCalls.Count);
+                    Check.Equal(1, client.CompleteMultipartUploadCalls.Count);
+                    Check.BytesEqual(payload, client.UploadPartCalls.SelectMany(x => x.Body).ToArray());
+                }),
+
+                Case(s, "Upload.JustBelowThresholdUsesPutObject", "A stream one byte below the threshold uses PutObject", async () =>
+                {
+                    FakeS3ClientAdapter client = new FakeS3ClientAdapter();
+                    S3Service service = new S3Service(CreateS3Settings(), QuietLogging(), client);
+                    byte[] payload = CreatePayload((int)(5L * 1024L * 1024L) - 1);
+
+                    await service.UploadFileAsync("alpha", "edge.bin", new MemoryStream(payload, writable: false), "application/octet-stream");
+
+                    Check.Equal(1, client.PutObjectCalls.Count);
+                    Check.Equal(0, client.InitiateMultipartUploadCalls.Count);
+                    Check.BytesEqual(payload, client.PutObjectCalls[0].Body);
+                }),
+
+                Case(s, "Upload.SmallNonSeekableUsesPutObject", "A small non-seekable stream buffers then uses PutObject", async () =>
+                {
+                    FakeS3ClientAdapter client = new FakeS3ClientAdapter();
+                    S3Service service = new S3Service(CreateS3Settings(), QuietLogging(), client);
+                    byte[] payload = CreatePayload(4096);
+
+                    await service.UploadFileAsync("alpha", "small.bin", new NonSeekableReadStream(payload), "application/octet-stream");
+
+                    Check.Equal(1, client.PutObjectCalls.Count);
+                    Check.Equal(0, client.InitiateMultipartUploadCalls.Count);
+                    Check.BytesEqual(payload, client.PutObjectCalls[0].Body);
+                }),
+
                 // ---- Collections config ----
                 Case(s, "Collections.LoadExisting", "LoadCollectionsAsync parses the stored config", async () =>
                 {
@@ -274,6 +314,25 @@ namespace MinCms.Test.Shared
 
                     Check.False(client.Contains("alpha/file0.txt"), "alpha objects should be gone");
                     Check.True(client.Contains("beta/keep.txt"), "beta objects should remain");
+                }),
+
+                Case(s, "Files.DeletePrefixNoMatchIsNoOp", "DeletePrefixAsync on an empty prefix deletes nothing without error", async () =>
+                {
+                    FakeS3ClientAdapter client = new FakeS3ClientAdapter();
+                    client.Seed("beta/keep.txt", CreatePayload(4), "text/plain");
+                    S3Service service = new S3Service(CreateS3Settings(), QuietLogging(), client);
+
+                    await service.DeletePrefixAsync("alpha");
+
+                    Check.Equal(0, client.DeleteObjectsCalls.Count, "No delete batch should be issued when nothing matches");
+                    Check.True(client.Contains("beta/keep.txt"), "Unrelated objects should remain");
+                }),
+
+                Case(s, "Files.DeletePrefixNullSlug", "DeletePrefixAsync rejects a null slug", async () =>
+                {
+                    FakeS3ClientAdapter client = new FakeS3ClientAdapter();
+                    S3Service service = new S3Service(CreateS3Settings(), QuietLogging(), client);
+                    await Check.ThrowsAsync<ArgumentNullException>(() => service.DeletePrefixAsync(null));
                 })
             };
 
