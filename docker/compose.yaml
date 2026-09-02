@@ -60,10 +60,8 @@ services:
     restart: unless-stopped
 
   mincms-server:
+    image: jchristn77/mincms-server:v0.1.0
     container_name: mincms-server
-    build:
-      context: ../src
-      dockerfile: MinCms.Server/Dockerfile
     ports:
       - "8200:8200"
     volumes:
@@ -92,10 +90,8 @@ services:
     restart: unless-stopped
 
   mincms-dashboard:
+    image: jchristn77/mincms-dashboard:v0.1.0
     container_name: mincms-dashboard
-    build:
-      context: ../dashboard
-      dockerfile: Dockerfile
     ports:
       - "8300:8300"
     environment:
