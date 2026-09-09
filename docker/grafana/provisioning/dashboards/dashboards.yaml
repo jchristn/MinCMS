@@ -1,0 +1,13 @@
+apiVersion: 1
+
+providers:
+  - name: MinCMS
+    orgId: 1
+    folder: MinCMS
+    type: file
+    disableDeletion: false
+    editable: true
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

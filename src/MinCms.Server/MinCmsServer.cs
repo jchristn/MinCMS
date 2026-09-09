@@ -3,6 +3,8 @@ namespace MinCms.Server
     using MinCms.Core;
     using MinCms.Core.Services;
     using MinCms.Core.Settings;
+    using MinCms.Server.Telemetry;
+    using Radiant;
     using SyslogLogging;
     using System;
     using System.Collections.Generic;
@@ -25,6 +27,7 @@ namespace MinCms.Server
 
         private static LoggingModule _Logging = null;
         private static ServerSettings _Settings = null;
+        private static RadiantHost _Telemetry = null;
         private static IS3Service _S3Service = null;
         private static ICollectionService _CollectionService = null;
         private static MinCmsApiHost _Host = null;
@@ -41,6 +44,7 @@ namespace MinCms.Server
             InitializeSettings();
             ApplyEnvironmentOverrides();
             InitializeLogging();
+            InitializeTelemetry();
             await InitializeServicesAsync().ConfigureAwait(false);
 
             using (_Host = new MinCmsApiHost(_Settings, _Logging, _CollectionService))
@@ -75,6 +79,8 @@ namespace MinCms.Server
 
                 _Logging.Info(_Header + "stopping at " + DateTime.UtcNow);
             }
+
+            _Telemetry?.Dispose();
         }
 
         private static void Welcome()
@@ -138,6 +144,31 @@ namespace MinCms.Server
             val = Environment.GetEnvironmentVariable(Constants.WebserverPortEnvVar);
             if (!String.IsNullOrEmpty(val) && Int32.TryParse(val, out int port))
                 _Settings.Rest.Port = port;
+
+            val = Environment.GetEnvironmentVariable(Constants.TelemetryEnabledEnvVar);
+            if (!String.IsNullOrEmpty(val) && Boolean.TryParse(val, out bool telemetryEnabled))
+                _Settings.Telemetry.Enable = telemetryEnabled;
+
+            val = Environment.GetEnvironmentVariable(Constants.TelemetryServiceNameEnvVar);
+            if (!String.IsNullOrEmpty(val)) _Settings.Telemetry.ServiceName = val;
+
+            val = Environment.GetEnvironmentVariable(Constants.TelemetryOtlpEnabledEnvVar);
+            if (!String.IsNullOrEmpty(val) && Boolean.TryParse(val, out bool otlpEnabled))
+                _Settings.Telemetry.Otlp.Enable = otlpEnabled;
+
+            val = Environment.GetEnvironmentVariable(Constants.TelemetryOtlpEndpointEnvVar);
+            if (!String.IsNullOrEmpty(val)) _Settings.Telemetry.Otlp.Endpoint = val;
+
+            val = Environment.GetEnvironmentVariable(Constants.TelemetryOtlpProtocolEnvVar);
+            if (!String.IsNullOrEmpty(val)) _Settings.Telemetry.Otlp.Protocol = val;
+
+            val = Environment.GetEnvironmentVariable(Constants.TelemetryPrometheusEnabledEnvVar);
+            if (!String.IsNullOrEmpty(val) && Boolean.TryParse(val, out bool prometheusEnabled))
+                _Settings.Telemetry.Prometheus.Enable = prometheusEnabled;
+
+            val = Environment.GetEnvironmentVariable(Constants.TelemetryPrometheusPortEnvVar);
+            if (!String.IsNullOrEmpty(val) && Int32.TryParse(val, out int prometheusPort))
+                _Settings.Telemetry.Prometheus.Port = prometheusPort;
         }
 
         private static void InitializeLogging()
@@ -174,6 +205,12 @@ namespace MinCms.Server
             }
 
             _Logging.Info(_Header + "logging initialized");
+        }
+
+        private static void InitializeTelemetry()
+        {
+            Console.WriteLine("Initializing telemetry");
+            _Telemetry = TelemetryBootstrap.Start(_Settings.Telemetry, _Logging);
         }
 
         private static async Task InitializeServicesAsync()

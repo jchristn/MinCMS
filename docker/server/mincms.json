@@ -52,5 +52,26 @@
       "ETag"
     ],
     "MaxAgeSeconds": 86400
+  },
+  "Telemetry": {
+    "Enable": true,
+    "ServiceName": "MinCMS",
+    "ServiceInstanceId": null,
+    "Otlp": {
+      "Enable": true,
+      "Endpoint": "http://otel-collector:4317",
+      "Protocol": "Grpc",
+      "TimeoutMs": 10000
+    },
+    "Prometheus": {
+      "Enable": false,
+      "Hostname": "localhost",
+      "Port": 9464,
+      "Path": "/metrics"
+    },
+    "MetricsExportIntervalMs": 15000,
+    "IncludeRuntimeMetrics": true,
+    "IncludeProcessMetrics": true,
+    "TraceSamplingRatio": 1.0
   }
 }

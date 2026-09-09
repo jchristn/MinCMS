@@ -55,6 +55,15 @@ namespace MinCms.Core.Settings
             set => _Cors = value ?? new CorsSettings();
         }
 
+        /// <summary>
+        /// Telemetry (metrics, traces, logs) settings.
+        /// </summary>
+        public TelemetrySettings Telemetry
+        {
+            get => _Telemetry;
+            set => _Telemetry = value ?? new TelemetrySettings();
+        }
+
         #endregion
 
         #region Private-Members
@@ -69,6 +78,7 @@ namespace MinCms.Core.Settings
 
         private LoggingSettings _Logging = new LoggingSettings();
         private CorsSettings _Cors = new CorsSettings();
+        private TelemetrySettings _Telemetry = new TelemetrySettings();
 
         #endregion
 

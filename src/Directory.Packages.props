@@ -5,6 +5,7 @@
 
   <ItemGroup>
     <PackageVersion Include="AWSSDK.S3" Version="4.0.102.1" />
+    <PackageVersion Include="Radiant" Version="0.1.2" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
     <PackageVersion Include="SyslogLogging" Version="2.2.1" />
     <PackageVersion Include="Watson" Version="7.1.0" />

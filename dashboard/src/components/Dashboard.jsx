@@ -1,5 +1,6 @@
 import Topbar from './Topbar.jsx';
 import CollectionList from './CollectionList.jsx';
+import ObservabilityPanel from './ObservabilityPanel.jsx';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -8,6 +9,7 @@ const Dashboard = () => {
       <Topbar />
       <div className="dashboard-content">
         <CollectionList />
+        <ObservabilityPanel />
       </div>
     </div>
   );

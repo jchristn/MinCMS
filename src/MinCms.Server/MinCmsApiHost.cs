@@ -4,9 +4,11 @@ namespace MinCms.Server
     using MinCms.Core.Enums;
     using MinCms.Core.Services;
     using MinCms.Core.Settings;
+    using MinCms.Server.Telemetry;
     using SyslogLogging;
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.IO;
     using System.Linq;
     using System.Text;
@@ -59,7 +61,7 @@ namespace MinCms.Server
             _CollectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
 
             WebserverSettings webserverSettings = new WebserverSettings(_Settings.Rest.Hostname, _Settings.Rest.Port, _Settings.Rest.Ssl);
-            _Server = new Webserver(webserverSettings, DefaultRouteAsync);
+            _Server = new Webserver(webserverSettings, Traced(null, DefaultRouteAsync));
             _Server.Serializer = new MinCmsSerializer();
             _Server.Events.Logger = msg => _Logging.Debug(_Header + msg);
             _Server.Settings.IO.ReadTimeoutMs = _Settings.Rest.ReadTimeoutMs;
@@ -96,10 +98,11 @@ namespace MinCms.Server
 
         private void ConfigureLifecycleRoutes()
         {
-            _Server.Routes.Preflight = HandlePreflightAsync;
+            _Server.Routes.Preflight = Traced(null, HandlePreflightAsync);
 
             _Server.Routes.PreRouting = async (ctx) =>
             {
+                HttpTelemetry.IncrementActiveRequests(ctx.Request.Method.ToString(), Scheme);
                 ApplyCorsHeaders(ctx, includePreflightHeaders: false);
                 ctx.Response.ContentType = Constants.JsonContentType;
                 await Task.CompletedTask.ConfigureAwait(false);
@@ -111,6 +114,12 @@ namespace MinCms.Server
                 DateTime? end = ctx.Timestamp.End;
                 DateTime effectiveEnd = end.HasValue && end.Value > DateTime.MinValue ? end.Value : DateTime.UtcNow;
                 double elapsedMs = start.HasValue && start.Value > DateTime.MinValue ? (effectiveEnd - start.Value).TotalMilliseconds : 0;
+
+                string method = ctx.Request.Method.ToString();
+                string route = HttpTelemetry.NormalizeRoute(ctx.Request.Url.RawWithQuery);
+
+                HttpTelemetry.RecordRequest(method, route, ctx.Response.StatusCode, Scheme, elapsedMs / 1000.0);
+                HttpTelemetry.DecrementActiveRequests(method, Scheme);
 
                 _Logging.Debug(
                     _Header
@@ -139,6 +148,7 @@ namespace MinCms.Server
 
                 if (String.IsNullOrEmpty(apiKey))
                 {
+                    HttpTelemetry.RecordAuthFailure(HttpTelemetry.NormalizeRoute(ctx.Request.Url.RawWithQuery));
                     _Logging.Warn(_Header + "no auth material supplied for " + ctx.Request.Method + " from " + ctx.Request.Source.IpAddress + ":" + ctx.Request.Source.Port);
                     await SendApiErrorAsync(ctx, ApiErrorEnum.AuthenticationFailed, "Authentication required.").ConfigureAwait(false);
                     return;
@@ -147,6 +157,7 @@ namespace MinCms.Server
                 AccessKeyEntry matchedKey = _Settings.AccessKeys.FirstOrDefault(k => String.Equals(k.Key, apiKey, StringComparison.Ordinal));
                 if (matchedKey == null)
                 {
+                    HttpTelemetry.RecordAuthFailure(HttpTelemetry.NormalizeRoute(ctx.Request.Url.RawWithQuery));
                     _Logging.Warn(_Header + "API key from " + ctx.Request.Source.IpAddress + ":" + ctx.Request.Source.Port + " not found");
                     await SendApiErrorAsync(ctx, ApiErrorEnum.AuthenticationFailed, "Authentication required.").ConfigureAwait(false);
                     return;
@@ -162,7 +173,7 @@ namespace MinCms.Server
             _Server.Routes.PreAuthentication.Static.Add(
                 HttpMethod.GET,
                 _OpenApiSettings.DocumentPath,
-                ServeOpenApiDocumentAsync,
+                Traced(_OpenApiSettings.DocumentPath, ServeOpenApiDocumentAsync),
                 openApiMetadata: CreatePublicRouteMetadata(
                     "GetOpenApiDocument",
                     "Retrieve the generated OpenAPI document",
@@ -176,7 +187,7 @@ namespace MinCms.Server
             _Server.Routes.PreAuthentication.Static.Add(
                 HttpMethod.GET,
                 _OpenApiSettings.SwaggerUiPath,
-                SwaggerUiHandler.Create(_OpenApiSettings.DocumentPath, _OpenApiSettings.Info.Title),
+                Traced(_OpenApiSettings.SwaggerUiPath, SwaggerUiHandler.Create(_OpenApiSettings.DocumentPath, _OpenApiSettings.Info.Title)),
                 openApiMetadata: CreatePublicRouteMetadata(
                     "GetSwaggerUi",
                     "Open the Swagger UI",
@@ -192,11 +203,11 @@ namespace MinCms.Server
             _Server.Routes.PreAuthentication.Static.Add(
                 HttpMethod.HEAD,
                 "/",
-                async (ctx) =>
+                Traced("/", async (ctx) =>
                 {
                     ctx.Response.StatusCode = 200;
                     await ctx.Response.Send(ctx.Token).ConfigureAwait(false);
-                },
+                }),
                 openApiMetadata: CreatePublicRouteMetadata(
                     "HeadRoot",
                     "Health probe",
@@ -207,12 +218,12 @@ namespace MinCms.Server
             _Server.Routes.PreAuthentication.Static.Add(
                 HttpMethod.GET,
                 "/",
-                async (ctx) =>
+                Traced("/", async (ctx) =>
                 {
                     ctx.Response.StatusCode = 200;
                     ctx.Response.ContentType = Constants.HtmlContentType;
                     await ctx.Response.Send(Constants.HtmlHomepage, ctx.Token).ConfigureAwait(false);
-                },
+                }),
                 openApiMetadata: CreatePublicRouteMetadata(
                     "GetRoot",
                     "Get the API root page",
@@ -440,7 +451,7 @@ namespace MinCms.Server
             _Server.Routes.PreAuthentication.Parameter.Add(
                 HttpMethod.GET,
                 "/download/{slug}",
-                async (ctx) =>
+                Traced("/download/{slug}", async (ctx) =>
                 {
                     string sourceIp = GetSourceIp(ctx);
                     string slug = ctx.Request.Url.Parameters["slug"];
@@ -461,12 +472,12 @@ namespace MinCms.Server
                     ctx.Response.StatusCode = 200;
                     ctx.Response.ContentType = Constants.HtmlContentType;
                     await ctx.Response.Send(BuildDirectoryListing(collection, files), ctx.Token).ConfigureAwait(false);
-                });
+                }));
 
             _Server.Routes.PreAuthentication.Parameter.Add(
                 HttpMethod.GET,
                 "/download/{slug}/sitemap.xml",
-                async (ctx) =>
+                Traced("/download/{slug}/sitemap.xml", async (ctx) =>
                 {
                     string sourceIp = GetSourceIp(ctx);
                     string slug = ctx.Request.Url.Parameters["slug"];
@@ -481,12 +492,12 @@ namespace MinCms.Server
                     ctx.Response.StatusCode = 200;
                     ctx.Response.ContentType = Constants.XmlContentType;
                     await ctx.Response.Send(BuildSitemapXml(collection.Slug, files), ctx.Token).ConfigureAwait(false);
-                });
+                }));
 
             _Server.Routes.PreAuthentication.Parameter.Add(
                 HttpMethod.GET,
                 "/download/{slug}/{fileName}",
-                async (ctx) =>
+                Traced("/download/{slug}/{fileName}", async (ctx) =>
                 {
                     string sourceIp = GetSourceIp(ctx);
                     string slug = ctx.Request.Url.Parameters["slug"];
@@ -518,7 +529,7 @@ namespace MinCms.Server
 
                     downloadResult.Content.Dispose();
                     await ctx.Response.Send(fileBytes, ctx.Token).ConfigureAwait(false);
-                });
+                }));
         }
 
         private async Task DefaultRouteAsync(HttpContextBase ctx)
@@ -608,6 +619,39 @@ namespace MinCms.Server
             }
         }
 
+        private string Scheme => _Settings.Rest.Ssl ? "https" : "http";
+
+        /// <summary>
+        /// Wrap a Watson route handler in an inbound HTTP server span. The span becomes the parent of
+        /// any application-layer spans the handler starts, so a single trace spans the whole request.
+        /// Request-level metrics are recorded centrally in PostRouting; this only adds tracing.
+        /// </summary>
+        private Func<HttpContextBase, Task> Traced(string routeTemplate, Func<HttpContextBase, Task> inner)
+        {
+            return async (ctx) =>
+            {
+                string method = ctx.Request.Method.ToString();
+                string route = routeTemplate ?? HttpTelemetry.NormalizeRoute(ctx.Request.Url.RawWithQuery);
+                using Activity activity = HttpTelemetry.StartServerSpan(method, route, Scheme);
+
+                try
+                {
+                    await inner(ctx).ConfigureAwait(false);
+
+                    if (activity != null)
+                    {
+                        activity.SetTag("http.response.status_code", ctx.Response.StatusCode);
+                        activity.SetStatus(ctx.Response.StatusCode >= 500 ? ActivityStatusCode.Error : ActivityStatusCode.Ok);
+                    }
+                }
+                catch (Exception e)
+                {
+                    HttpTelemetry.RecordException(activity, e);
+                    throw;
+                }
+            };
+        }
+
         private void MapApiRoute(
             HttpMethod method,
             string path,
@@ -636,14 +680,15 @@ namespace MinCms.Server
             bool auth)
         {
             RoutingGroup group = auth ? _Server.Routes.PostAuthentication : _Server.Routes.PreAuthentication;
+            Func<HttpContextBase, Task> tracedHandler = Traced(path, handler);
 
             if (path.Contains('{'))
             {
-                group.Parameter.Add(method, path, handler, openApiMetadata: openApiMetadata);
+                group.Parameter.Add(method, path, tracedHandler, openApiMetadata: openApiMetadata);
             }
             else
             {
-                group.Static.Add(method, path, handler, openApiMetadata: openApiMetadata);
+                group.Static.Add(method, path, tracedHandler, openApiMetadata: openApiMetadata);
             }
 
             RegisterDocumentedPreflightRoute(path, path.Contains("/files/", StringComparison.OrdinalIgnoreCase) || path.EndsWith("/files", StringComparison.OrdinalIgnoreCase) ? "Files" : "Collections");
@@ -669,11 +714,11 @@ namespace MinCms.Server
                     metadata.WithParameter(OpenApiParameterMetadata.Path(parameterName, "Route parameter."));
                 }
 
-                _Server.Routes.PreAuthentication.Parameter.Add(HttpMethod.OPTIONS, path, HandlePreflightAsync, openApiMetadata: metadata);
+                _Server.Routes.PreAuthentication.Parameter.Add(HttpMethod.OPTIONS, path, Traced(path, HandlePreflightAsync), openApiMetadata: metadata);
             }
             else
             {
-                _Server.Routes.PreAuthentication.Static.Add(HttpMethod.OPTIONS, path, HandlePreflightAsync, openApiMetadata: metadata);
+                _Server.Routes.PreAuthentication.Static.Add(HttpMethod.OPTIONS, path, Traced(path, HandlePreflightAsync), openApiMetadata: metadata);
             }
         }
 

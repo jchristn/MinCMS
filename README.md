@@ -17,6 +17,7 @@ MinCMS is a minimal, self-hosted content management system backed by S3-compatib
 
 - S3-backed collections and file metadata with no relational database
 - Watson 7 webserver stack with key-based authentication
+- Full metrics, tracing, and logs (OpenTelemetry / Prometheus / Grafana) — see [TELEMETRY.md](TELEMETRY.md)
 - Built-in `/openapi.json` and `/swagger`
 - Documented CORS preflight support for all non-download routes
 - Public HTML download listings and download links
@@ -51,6 +52,10 @@ The compose stack also bootstraps the Less3 runtime state on container startup; 
 | Swagger UI | `http://localhost:8200/swagger` |
 | OpenAPI JSON | `http://localhost:8200/openapi.json` |
 | MinCMS Dashboard | `http://localhost:8300` |
+| Grafana | `http://localhost:3001` (admin / admin) |
+| Prometheus | `http://localhost:9090` |
+| Tempo | `http://localhost:3200` |
+| Loki | `http://localhost:3100` |
 
 ### Default API key
 
@@ -260,6 +265,7 @@ They produce local tags:
 
 ## Related Files
 
+- [TELEMETRY.md](TELEMETRY.md): metrics, traces, logs, and observability-stack integration
 - [REST_API.md](REST_API.md): route-by-route API reference
 - [MinCMS.postman_collection.json](MinCMS.postman_collection.json): Postman collection
 - [docker/compose.yaml](docker/compose.yaml): local deployment

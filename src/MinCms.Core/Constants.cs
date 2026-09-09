@@ -10,7 +10,7 @@ namespace MinCms.Core
         /// <summary>
         /// Software version.
         /// </summary>
-        public static string Version = "v1.0.0";
+        public static string Version = "v1.0.1";
 
         /// <summary>
         /// Logo.
@@ -127,6 +127,27 @@ namespace MinCms.Core
 
         /// <summary>Webserver port environment variable.</summary>
         public static string WebserverPortEnvVar = "WEBSERVER_PORT";
+
+        /// <summary>Telemetry master-switch environment variable.</summary>
+        public static string TelemetryEnabledEnvVar = "TELEMETRY_ENABLED";
+
+        /// <summary>Telemetry service-name environment variable.</summary>
+        public static string TelemetryServiceNameEnvVar = "TELEMETRY_SERVICE_NAME";
+
+        /// <summary>OTLP exporter enabled environment variable.</summary>
+        public static string TelemetryOtlpEnabledEnvVar = "OTEL_EXPORTER_OTLP_ENABLED";
+
+        /// <summary>OTLP exporter endpoint environment variable.</summary>
+        public static string TelemetryOtlpEndpointEnvVar = "OTEL_EXPORTER_OTLP_ENDPOINT";
+
+        /// <summary>OTLP exporter protocol environment variable (Grpc or HttpProtobuf).</summary>
+        public static string TelemetryOtlpProtocolEnvVar = "OTEL_EXPORTER_OTLP_PROTOCOL";
+
+        /// <summary>In-process Prometheus scrape endpoint enabled environment variable.</summary>
+        public static string TelemetryPrometheusEnabledEnvVar = "TELEMETRY_PROMETHEUS_ENABLED";
+
+        /// <summary>In-process Prometheus scrape endpoint port environment variable.</summary>
+        public static string TelemetryPrometheusPortEnvVar = "TELEMETRY_PROMETHEUS_PORT";
 
         #endregion
 

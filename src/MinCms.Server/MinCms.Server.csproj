@@ -15,6 +15,7 @@
 	<ItemGroup>
 		<PackageReference Include="Watson" />
 		<PackageReference Include="SyslogLogging" />
+		<PackageReference Include="Radiant" />
 	</ItemGroup>
 
 	<ItemGroup>

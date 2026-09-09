@@ -5,7 +5,13 @@ window.__MINCMS_CONFIG__ = {
   serverUrl: "${MINCMS_SERVER_URL:-http://localhost:8200}",
   logoFile: "${MINCMS_LOGO_FILE:-/assets/logo.png}",
   logoNoTextFile: "${MINCMS_LOGO_NOTEXT_FILE:-/assets/logo-no-text.png}",
-  faviconFile: "${MINCMS_FAVICON_FILE:-/assets/logo-no-text.ico}"
+  faviconFile: "${MINCMS_FAVICON_FILE:-/assets/logo-no-text.ico}",
+  observability: [
+    { name: "Grafana", role: "Dashboards & visualization", url: "${MINCMS_GRAFANA_URL:-}", credentials: "${MINCMS_GRAFANA_CREDENTIALS:-}" },
+    { name: "Prometheus", role: "Metrics", url: "${MINCMS_PROMETHEUS_URL:-}", credentials: "${MINCMS_PROMETHEUS_CREDENTIALS:-}" },
+    { name: "Tempo", role: "Distributed traces", url: "${MINCMS_TEMPO_URL:-}", credentials: "${MINCMS_TEMPO_CREDENTIALS:-}" },
+    { name: "Loki", role: "Logs", url: "${MINCMS_LOKI_URL:-}", credentials: "${MINCMS_LOKI_CREDENTIALS:-}" }
+  ]
 };
 EOF
 

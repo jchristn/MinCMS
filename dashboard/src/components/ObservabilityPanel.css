@@ -1,0 +1,83 @@
+.observability-panel {
+  margin-top: 32px;
+}
+
+.observability-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.observability-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-heading);
+  margin: 0;
+}
+
+.observability-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.observability-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.observability-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.observability-card:hover {
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.observability-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--accent-primary);
+}
+
+.observability-card-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.observability-card-role {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.observability-card-url {
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--accent-primary);
+  word-break: break-all;
+}
+
+.observability-card-creds {
+  font-size: 12px;
+  color: var(--text-body);
+  margin-top: 2px;
+}
+
+.observability-card-creds-label {
+  color: var(--text-muted);
+}
