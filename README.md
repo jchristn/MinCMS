@@ -240,21 +240,23 @@ npm install
 npm run dev
 ```
 
-### Local image helper scripts
+### Image build/push helper scripts
 
-The repository includes two convenience scripts that build local images without pushing anything to Docker Hub:
+The repository includes convenience scripts that build the images from local source and push them to Docker Hub. Run `docker login` first.
 
 ```bash
+build-all.bat v0.1.0
+REM or individually:
 build-server.bat v0.1.0
 build-dashboard.bat v0.1.0
 ```
 
-They produce local tags:
+Each script tags both the short local names and the Docker Hub names, then pushes the Docker Hub tags:
 
-- `mincms-server:latest`
-- `mincms-server:<tag>`
-- `mincms-dashboard:latest`
-- `mincms-dashboard:<tag>`
+- Local: `mincms-server:latest`, `mincms-server:<tag>`, `mincms-dashboard:latest`, `mincms-dashboard:<tag>`
+- Docker Hub (pushed): `jchristn77/mincms-server:latest`, `jchristn77/mincms-server:<tag>`, `jchristn77/mincms-dashboard:latest`, `jchristn77/mincms-dashboard:<tag>`
+
+The Docker Hub namespace defaults to `jchristn77` (matching `docker/compose.yaml`) and can be overridden with an optional second argument, e.g. `build-all.bat v0.1.0 myusername`.
 
 ## Development Notes
 
