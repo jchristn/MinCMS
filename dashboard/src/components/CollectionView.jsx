@@ -211,6 +211,35 @@ const CollectionView = () => {
     }
   };
 
+  const triggerDownload = (fullPath) => {
+    const url = apiClient.getDownloadUrl(slug, fullPath);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = (fullPath || '').split('/').pop() || 'download';
+    link.rel = 'noopener';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
+  const handleBatchDownload = () => {
+    const paths = [];
+    for (const item of selectedFiles) {
+      if (item._isFolder) {
+        const prefix = currentPrefix + item._folderName + '/';
+        paths.push(...getFilesUnderPrefix(prefix).map(f => f.FileName));
+      } else {
+        paths.push(item._fullPath || item.FileName);
+      }
+    }
+    // Deduplicate in case a folder and its contents are both selected
+    const unique = [...new Set(paths)];
+    // Stagger downloads slightly so browsers don't drop concurrent requests
+    unique.forEach((path, i) => {
+      setTimeout(() => triggerDownload(path), i * 300);
+    });
+  };
+
   const handleViewMetadata = async (file) => {
     try {
       const metadata = await apiClient.getFileMetadata(slug, file._fullPath || file.FileName);
@@ -258,14 +287,7 @@ const CollectionView = () => {
     } else if (action === 'metadata') {
       handleViewMetadata(file);
     } else if (action === 'download') {
-      const url = apiClient.getDownloadUrl(slug, file._fullPath || file.FileName);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = (file._fullPath || file.FileName || '').split('/').pop() || 'download';
-      link.rel = 'noopener';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      triggerDownload(file._fullPath || file.FileName);
     }
   };
 
@@ -407,6 +429,11 @@ const CollectionView = () => {
             <span className="collection-base-url"><span className="collection-base-url-label">Base URL:</span> <code className="collection-base-url-value">{baseUrl}</code><button type="button" className="collection-base-url-copy" onClick={async () => { await copyToClipboard(baseUrl); setBaseUrlCopied(true); setTimeout(() => setBaseUrlCopied(false), 1500); }} title="Copy base URL">{baseUrlCopied ? (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2"><polyline points="20 6 9 17 4 12"></polyline></svg>) : (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>)}</button></span>
           </div>
           <div className="collection-view-actions">
+            {selectedFiles.length > 0 && (
+              <button className="btn btn-secondary" onClick={handleBatchDownload}>
+                Download Selected ({selectedFiles.length})
+              </button>
+            )}
             {selectedFiles.length > 0 && (
               <button className="btn btn-danger" onClick={() => setBatchDeleteModalOpen(true)}>
                 Delete Selected ({selectedFiles.length})
