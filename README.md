@@ -242,21 +242,30 @@ npm run dev
 
 ### Image build/push helper scripts
 
-The repository includes convenience scripts that build the images from local source and push them to Docker Hub. Run `docker login` first.
+The repository includes convenience scripts that build multi-platform images (linux/amd64, linux/arm64/v8) from local source using the Docker Buildx cloud builder and push them to Docker Hub. Run `docker login` first.
 
 ```bash
+# macOS / Linux
+./build-all.sh v0.1.0
+# or individually:
+./build-server.sh v0.1.0
+./build-dashboard.sh v0.1.0
+```
+
+```bat
+REM Windows
 build-all.bat v0.1.0
 REM or individually:
 build-server.bat v0.1.0
 build-dashboard.bat v0.1.0
 ```
 
-Each script tags both the short local names and the Docker Hub names, then pushes the Docker Hub tags:
+Each script pushes both the specified tag and `latest`:
 
-- Local: `mincms-server:latest`, `mincms-server:<tag>`, `mincms-dashboard:latest`, `mincms-dashboard:<tag>`
-- Docker Hub (pushed): `jchristn77/mincms-server:latest`, `jchristn77/mincms-server:<tag>`, `jchristn77/mincms-dashboard:latest`, `jchristn77/mincms-dashboard:<tag>`
+- `jchristn77/mincms-server:latest`, `jchristn77/mincms-server:<tag>`
+- `jchristn77/mincms-dashboard:latest`, `jchristn77/mincms-dashboard:<tag>`
 
-The Docker Hub namespace defaults to `jchristn77` (matching `docker/compose.yaml`) and can be overridden with an optional second argument, e.g. `build-all.bat v0.1.0 myusername`.
+The Docker Hub namespace defaults to `jchristn77` (matching `docker/compose.yaml`) and can be overridden with an optional second argument, e.g. `./build-all.sh v0.1.0 myusername`.
 
 ## Development Notes
 

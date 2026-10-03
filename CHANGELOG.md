@@ -1,6 +1,11 @@
 # Change Log
 
-## Current Version v0.1.1
+## Current Version v0.1.2
+
+- Updated NuGet dependencies: AWSSDK.S3 4.0.104.1, SyslogLogging 2.3.1, Watson 7.2.2, Microsoft.NET.Test.Sdk 18.10.1, NUnit 5.0.0, NUnit3TestAdapter 6.3.0, Touchstone (Core, Cli, XunitAdapter, NunitAdapter) 0.2.0
+- Added `build-all.sh`, `build-server.sh`, and `build-dashboard.sh` Docker build scripts for macOS/Linux
+
+## Previous Version v0.1.1
 
 - Added end-to-end observability built on `System.Diagnostics.Metrics` / `System.Diagnostics` and the Radiant telemetry SDK (OpenTelemetry export)
 - Metrics, traces, and structured logs for all HTTP routes, the collection application layer, the S3 storage layer, plus .NET runtime and process health
