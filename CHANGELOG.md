@@ -3,6 +3,7 @@
 ## Current Version v0.1.2
 
 - Updated NuGet dependencies: AWSSDK.S3 4.0.104.1, SyslogLogging 2.3.1, Watson 7.2.2, Microsoft.NET.Test.Sdk 18.10.1, NUnit 5.0.0, NUnit3TestAdapter 6.3.0, Touchstone (Core, Cli, XunitAdapter, NunitAdapter) 0.2.0
+- Fixed multipart uploads (large files) failing with 409 "Base stream of PartialWrapperStream must be seekable"; part streams are now seekable
 - Added `build-all.sh`, `build-server.sh`, and `build-dashboard.sh` Docker build scripts for macOS/Linux
 
 ## Previous Version v0.1.1

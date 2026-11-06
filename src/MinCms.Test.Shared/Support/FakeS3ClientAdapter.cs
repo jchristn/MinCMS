@@ -246,6 +246,10 @@ namespace MinCms.Test.Shared.Support
             if (partNumber == FailPartNumber)
                 throw new InvalidOperationException("Simulated multipart upload failure.");
 
+            // Mirror the AWS SDK, which wraps part streams in a PartialWrapperStream that requires seekability.
+            if (request.InputStream != null && !request.InputStream.CanSeek)
+                throw new InvalidOperationException("Base stream of PartialWrapperStream must be seekable");
+
             byte[] body = await ReadAllBytesAsync(request.InputStream, token).ConfigureAwait(false);
 
             lock (_Sync)
