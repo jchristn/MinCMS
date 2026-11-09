@@ -103,10 +103,10 @@ const CollectionView = () => {
     return [...rows, ...folderRows, ...fileRows];
   }, [folders, currentFiles, currentPrefix]);
 
-  const handleUpload = async (file, relativePath, onProgress) => {
+  const handleUpload = async (file, relativePath, onProgress, signal) => {
     // Only pass custom fileName when relativePath differs from the file's own name
     const fileName = relativePath && relativePath !== file.name ? relativePath : undefined;
-    await apiClient.uploadFile(slug, file, fileName, onProgress);
+    await apiClient.uploadFile(slug, file, fileName, onProgress, signal);
   };
 
   const handlePageDrop = async (e) => {

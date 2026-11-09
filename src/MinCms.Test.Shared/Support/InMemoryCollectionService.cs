@@ -26,6 +26,12 @@ namespace MinCms.Test.Shared.Support
         /// </summary>
         public Func<string, (Stream Content, long Length)?> DownloadOverride { get; set; }
 
+        /// <summary>
+        /// Optional hook awaited during an upload after the request body has been received,
+        /// standing in for the time spent writing to storage.
+        /// </summary>
+        public Func<CancellationToken, Task> UploadStorageDelay { get; set; }
+
         /// <summary>Instantiate and seed the "alpha" collection.</summary>
         public InMemoryCollectionService()
         {
@@ -119,6 +125,11 @@ namespace MinCms.Test.Shared.Support
         {
             using MemoryStream ms = new MemoryStream();
             await content.CopyToAsync(ms, token).ConfigureAwait(false);
+
+            if (UploadStorageDelay != null)
+            {
+                await UploadStorageDelay(token).ConfigureAwait(false);
+            }
 
             lock (_Sync)
             {

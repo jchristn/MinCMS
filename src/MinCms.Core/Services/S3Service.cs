@@ -27,6 +27,7 @@ namespace MinCms.Core.Services
         #region Private-Members
 
         private static string _Header = "[S3Service] ";
+        private static readonly TimeSpan _CleanupTimeout = TimeSpan.FromSeconds(30);
         private S3Settings _S3Settings = null;
         private LoggingModule _Logging = null;
         private IS3ClientAdapter _S3Client = null;
@@ -625,6 +626,7 @@ namespace MinCms.Core.Services
         private async Task UploadFileMultipartAsync(string key, PreparedUploadSource source, string contentType, CancellationToken token)
         {
             InitiateMultipartUploadResponse initiateResponse = null;
+            bool completed = false;
 
             try
             {
@@ -674,11 +676,23 @@ namespace MinCms.Core.Services
                     PartETags = partEtags
                 };
 
-                await _S3Client.CompleteMultipartUploadAsync(completeRequest, token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                bool replacesExistingObject = await ObjectExistsAsync(key, token).ConfigureAwait(false);
+
+                // Completion can't be interrupted safely: storage may finish after the client stops
+                // waiting, so whether the object exists would be unknown. Let it finish, then undo it.
+                await _S3Client.CompleteMultipartUploadAsync(completeRequest, CancellationToken.None).ConfigureAwait(false);
+                completed = true;
+
+                if (token.IsCancellationRequested)
+                {
+                    await RemoveCancelledObjectAsync(key, replacesExistingObject).ConfigureAwait(false);
+                    token.ThrowIfCancellationRequested();
+                }
             }
             catch
             {
-                if (!String.IsNullOrEmpty(initiateResponse?.UploadId))
+                if (!completed && !String.IsNullOrEmpty(initiateResponse?.UploadId))
                 {
                     try
                     {
@@ -689,7 +703,9 @@ namespace MinCms.Core.Services
                             UploadId = initiateResponse.UploadId
                         };
 
-                        await _S3Client.AbortMultipartUploadAsync(abortRequest, token).ConfigureAwait(false);
+                        // The request token may already be cancelled, and cleanup must still run.
+                        using CancellationTokenSource cleanup = new CancellationTokenSource(_CleanupTimeout);
+                        await _S3Client.AbortMultipartUploadAsync(abortRequest, cleanup.Token).ConfigureAwait(false);
                     }
                     catch (Exception abortException)
                     {
@@ -698,6 +714,51 @@ namespace MinCms.Core.Services
                 }
 
                 throw;
+            }
+        }
+
+        private async Task<bool> ObjectExistsAsync(string key, CancellationToken token)
+        {
+            try
+            {
+                GetObjectMetadataRequest request = new GetObjectMetadataRequest
+                {
+                    BucketName = _S3Settings.Bucket,
+                    Key = key
+                };
+
+                await _S3Client.GetObjectMetadataAsync(request, token).ConfigureAwait(false);
+                return true;
+            }
+            catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return false;
+            }
+        }
+
+        private async Task RemoveCancelledObjectAsync(string key, bool replacedExistingObject)
+        {
+            if (replacedExistingObject)
+            {
+                // The previous version is already gone, so deleting would lose the file entirely.
+                _Logging.Warn(_Header + "upload of '" + key + "' was cancelled after it replaced the existing object; keeping the new version");
+                return;
+            }
+
+            try
+            {
+                using CancellationTokenSource cleanup = new CancellationTokenSource(_CleanupTimeout);
+                DeleteObjectRequest request = new DeleteObjectRequest
+                {
+                    BucketName = _S3Settings.Bucket,
+                    Key = key
+                };
+
+                await _S3Client.DeleteObjectAsync(request, cleanup.Token).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _Logging.Warn(_Header + "exception removing cancelled upload '" + key + "':" + Environment.NewLine + ex.ToString());
             }
         }
 

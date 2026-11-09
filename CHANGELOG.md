@@ -6,8 +6,9 @@
 - Fixed multipart uploads (large files) failing with 409 "Base stream of PartialWrapperStream must be seekable"; part streams are now seekable
 - Added `build-all.sh`, `build-server.sh`, and `build-dashboard.sh` Docker build scripts for macOS/Linux
 - Downloads now stream from storage instead of being read fully into memory first, so they start immediately, use far less server memory, and work for files over 2 GB. A storage failure after a download starts now closes the connection early instead of returning a JSON error
-- Dashboard uploads now show per-file progress and a "Finalizing" state while the server stores the file
-- Added dashboard tests (`npm test`) and download streaming tests
+- Dashboard uploads now show a progress bar with percent, bytes sent, and live speed for each file, combined progress and speed for multi-file uploads, a "Finalizing" state while the server stores the file, and the average speed once done
+- Cancelling an upload now stops it and leaves nothing behind: the dashboard closes the connection, the server cancels storage work when a client disconnects, removes its temp files, and aborts the multipart upload. Clicking outside the upload dialog no longer closes it during an upload
+- Added dashboard tests (`npm test`) plus download streaming and upload cancellation tests
 
 ## Previous Version v0.1.1
 

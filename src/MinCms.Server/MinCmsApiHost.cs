@@ -356,6 +356,7 @@ namespace MinCms.Server
                             throw new ArgumentException("No file found in multipart form data.");
 
                         using Stream fileStream = parsedFile.FileStream;
+                        RequestBodyCompletion.Mark(req.Http.Request);
                         string decodedFileName = Uri.UnescapeDataString(parsedFile.FileName);
 
                         _Logging.Debug(_Header + "upload file | key=" + keyName + " | source=" + sourceIp + " | slug=" + slug + " | file=" + decodedFileName);

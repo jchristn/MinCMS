@@ -65,7 +65,8 @@ class ApiClient {
 
   // Uses XMLHttpRequest because fetch cannot report request-body progress.
   // onProgress receives { loaded, total } in bytes, including multipart overhead.
-  async upload(endpoint, file, fileName, onProgress) {
+  // Aborting signal closes the connection, which makes the server discard the upload.
+  async upload(endpoint, file, fileName, onProgress, signal) {
     const formData = new FormData();
     if (fileName) {
       formData.append('file', file, fileName);
@@ -74,7 +75,16 @@ class ApiClient {
     }
 
     return new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(new Error('Upload aborted'));
+        return;
+      }
+
       const xhr = new XMLHttpRequest();
+      const abort = () => xhr.abort();
+      signal?.addEventListener('abort', abort);
+      xhr.onloadend = () => signal?.removeEventListener('abort', abort);
+
       xhr.open('POST', `${this.baseUrl}${endpoint}`);
 
       if (this.accessKey) {
@@ -160,8 +170,8 @@ class ApiClient {
     return this.get(`/v1.0/collections/${encodeURIComponent(slug)}/files`);
   }
 
-  async uploadFile(slug, file, fileName, onProgress) {
-    return this.upload(`/v1.0/collections/${encodeURIComponent(slug)}/files`, file, fileName, onProgress);
+  async uploadFile(slug, file, fileName, onProgress, signal) {
+    return this.upload(`/v1.0/collections/${encodeURIComponent(slug)}/files`, file, fileName, onProgress, signal);
   }
 
   async getFileText(slug, fileName) {

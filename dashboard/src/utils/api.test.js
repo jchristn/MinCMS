@@ -143,6 +143,28 @@ describe('ApiClient uploads', () => {
     await expect(pending).rejects.toThrow('Upload aborted');
   });
 
+  it('aborts the request when the signal fires and stops listening afterward', async () => {
+    const controller = new AbortController();
+    const pending = client.uploadFile('alpha', file(), undefined, undefined, controller.signal);
+    const xhr = lastXhr();
+    xhr.abort = vi.fn(() => xhr.onabort());
+
+    controller.abort();
+    expect(xhr.abort).toHaveBeenCalledTimes(1);
+    await expect(pending).rejects.toThrow('Upload aborted');
+
+    xhr.onloadend();
+    controller.abort();
+    expect(xhr.abort).toHaveBeenCalledTimes(1);
+  });
+
+  it('never sends a request when the signal has already fired', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await expect(client.uploadFile('alpha', file(), undefined, undefined, controller.signal)).rejects.toThrow('Upload aborted');
+    expect(FakeXhr.instances.length).toBe(0);
+  });
+
   it('saves edited text through the same upload route', async () => {
     const pending = client.saveTextFile('alpha', 'docs/notes.txt', 'content');
     const xhr = lastXhr();

@@ -24,7 +24,8 @@ namespace MinCms.Test.Shared
                     S3ServiceSuite(),
                     CollectionServiceSuite(),
                     ApiHostSuite(),
-                    DownloadStreamingSuite()
+                    DownloadStreamingSuite(),
+                    UploadCancellationSuite()
                 };
             }
         }

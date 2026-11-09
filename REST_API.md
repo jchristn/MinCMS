@@ -284,6 +284,7 @@ Example:
 - Success: `201`
 - Request content type: `multipart/form-data`
 - Response: `CollectionFile`
+- Cancelling: closing the connection before the response arrives cancels the upload and discards its data. If the request was replacing a file and storage has already committed the new version, that new version is kept, because deleting it would lose the file.
 
 The upload handler accepts standard browser and `HttpClient` multipart payloads, including filename values carried in `filename` or `filename*`.
 

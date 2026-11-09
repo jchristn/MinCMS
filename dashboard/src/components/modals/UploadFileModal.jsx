@@ -1,13 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import Modal from './Modal.jsx';
+import { createSpeedTracker, formatBytes, formatSpeed } from '../../utils/transferSpeed.js';
 import './UploadFileModal.css';
 
-const formatSize = (bytes) => {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-  return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
-};
+const PROGRESS_UPDATE_MS = 250;
+const STALL_CHECK_MS = 1000;
 
 async function readEntriesPromise(reader) {
   return new Promise((resolve, reject) => {
@@ -68,18 +65,22 @@ const StatusIcon = ({ status }) => {
   return null;
 };
 
-const UploadProgress = ({ percent }) => {
-  if (percent === undefined || percent === null) return null;
-  if (percent >= 100) {
-    return <span className="upload-file-progress-label">Finalizing…</span>;
-  }
+const UploadProgress = ({ progress, loaded, total, speed }) => {
+  if (progress === undefined || progress === null) return null;
+  const finalizing = progress >= 100;
   return (
-    <>
-      <span className="upload-file-progress" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
-        <span className="upload-file-progress-fill" style={{ width: `${percent}%` }} />
+    <div className="upload-file-transfer">
+      <span className="upload-file-progress" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
+        <span className="upload-file-progress-fill" style={{ width: `${progress}%` }} />
       </span>
-      <span className="upload-file-progress-label">{percent}%</span>
-    </>
+      {finalizing ? (
+        <span className="upload-file-progress-label">Finalizing…</span>
+      ) : (
+        <span className="upload-file-progress-label">
+          {progress}% · {formatBytes(loaded)} of {formatBytes(total)} · {formatSpeed(speed)}
+        </span>
+      )}
+    </div>
   );
 };
 
@@ -92,6 +93,7 @@ const UploadFileModal = ({ isOpen, onClose, onSubmit, initialFiles }) => {
   const folderInputRef = useRef(null);
   const cancelledRef = useRef(false);
   const runRef = useRef(0);
+  const abortRef = useRef(null);
 
   // Seed with files passed in from an external drop (e.g. on the table)
   useEffect(() => {
@@ -200,6 +202,8 @@ const UploadFileModal = ({ isOpen, onClose, onSubmit, initialFiles }) => {
     setDone(false);
     cancelledRef.current = false;
     const run = ++runRef.current;
+    const abortController = new AbortController();
+    abortRef.current = abortController;
 
     const maxConcurrent = 4;
     let nextIndex = 0;
@@ -211,21 +215,38 @@ const UploadFileModal = ({ isOpen, onClose, onSubmit, initialFiles }) => {
         setFiles((prev) =>
           prev.map((f, idx) => (idx === i ? { ...f, status: 'uploading' } : f))
         );
-        let lastPercent = -1;
-        const onProgress = ({ loaded, total }) => {
+        const tracker = createSpeedTracker();
+        let latest = { loaded: 0, total: files[i].file.size };
+        let lastPublished = 0;
+        tracker.record(0, latest.total);
+
+        const publish = () => {
           // A closed or restarted modal has a different file list, so its indexes no longer apply.
-          if (cancelledRef.current || runRef.current !== run || !total) return;
-          const percent = Math.min(100, Math.floor((loaded / total) * 100));
-          if (percent === lastPercent) return;
-          lastPercent = percent;
+          if (cancelledRef.current || runRef.current !== run || !latest.total) return;
+          lastPublished = Date.now();
+          const progress = Math.min(100, Math.floor((latest.loaded / latest.total) * 100));
+          const speed = tracker.bytesPerSecond();
           setFiles((prev) =>
-            prev.map((f, idx) => (idx === i ? { ...f, progress: percent } : f))
+            prev.map((f, idx) => (idx === i ? { ...f, progress, speed, loaded: latest.loaded, total: latest.total } : f))
           );
         };
+
+        const onProgress = ({ loaded, total }) => {
+          latest = { loaded, total };
+          tracker.record(loaded, total);
+          if (lastPublished === 0 || loaded >= total || Date.now() - lastPublished >= PROGRESS_UPDATE_MS) {
+            publish();
+          }
+        };
+
+        // Progress events stop during a stall, so refresh separately to show the speed falling.
+        const stallTimer = setInterval(publish, STALL_CHECK_MS);
+
         try {
-          await onSubmit(files[i].file, files[i].relativePath, onProgress);
+          await onSubmit(files[i].file, files[i].relativePath, onProgress, abortController.signal);
+          const averageSpeed = tracker.averageBytesPerSecond();
           setFiles((prev) =>
-            prev.map((f, idx) => (idx === i ? { ...f, status: cancelledRef.current ? 'pending' : 'done' } : f))
+            prev.map((f, idx) => (idx === i ? { ...f, status: cancelledRef.current ? 'pending' : 'done', averageSpeed } : f))
           );
         } catch (err) {
           if (cancelledRef.current) break;
@@ -234,6 +255,8 @@ const UploadFileModal = ({ isOpen, onClose, onSubmit, initialFiles }) => {
               idx === i ? { ...f, status: 'failed', error: err.message || 'Upload failed' } : f
             )
           );
+        } finally {
+          clearInterval(stallTimer);
         }
       }
     };
@@ -250,6 +273,7 @@ const UploadFileModal = ({ isOpen, onClose, onSubmit, initialFiles }) => {
   const handleClose = () => {
     if (uploading) {
       cancelledRef.current = true;
+      abortRef.current?.abort();
     }
     setFiles([]);
     setUploading(false);
@@ -262,8 +286,21 @@ const UploadFileModal = ({ isOpen, onClose, onSubmit, initialFiles }) => {
   const doneCount = files.filter((f) => f.status === 'done').length;
   const failedCount = files.filter((f) => f.status === 'failed').length;
 
+  // Up to four files upload at once, so the combined figures show the real total rate.
+  const active = files.filter((f) => f.status !== 'failed');
+  const overallTotal = active.reduce((sum, f) => sum + f.file.size, 0);
+  const overallLoaded = active.reduce((sum, f) => {
+    if (f.status === 'done') return sum + f.file.size;
+    if (f.status === 'uploading') return sum + Math.min(f.loaded ?? 0, f.file.size);
+    return sum;
+  }, 0);
+  const overallSpeed = files
+    .filter((f) => f.status === 'uploading')
+    .reduce((sum, f) => sum + (f.speed ?? 0), 0);
+  const overallPercent = overallTotal > 0 ? Math.min(100, Math.floor((overallLoaded / overallTotal) * 100)) : 0;
+
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Upload Files" size="large">
+    <Modal isOpen={isOpen} onClose={handleClose} title="Upload Files" size="large" closeOnBackdrop={!uploading}>
       <form onSubmit={handleSubmit}>
         {/* Drop zone */}
         <div
@@ -322,8 +359,10 @@ const UploadFileModal = ({ isOpen, onClose, onSubmit, initialFiles }) => {
               <div key={entry.relativePath + index} className={`upload-file-row status-${entry.status}`}>
                 <StatusIcon status={entry.status} />
                 <span className="upload-file-path" title={entry.relativePath}>{entry.relativePath}</span>
-                {entry.status === 'uploading' && <UploadProgress percent={entry.progress} />}
-                <span className="upload-file-size">{formatSize(entry.file.size)}</span>
+                {entry.status === 'done' && entry.averageSpeed !== null && entry.averageSpeed !== undefined && (
+                  <span className="upload-file-average">avg {formatSpeed(entry.averageSpeed)}</span>
+                )}
+                <span className="upload-file-size">{formatBytes(entry.file.size)}</span>
                 {entry.status === 'pending' && !uploading && (
                   <button
                     type="button"
@@ -337,8 +376,18 @@ const UploadFileModal = ({ isOpen, onClose, onSubmit, initialFiles }) => {
                 {entry.status === 'failed' && entry.error && (
                   <span className="upload-file-error" title={entry.error}>!</span>
                 )}
+                {entry.status === 'uploading' && (
+                  <UploadProgress progress={entry.progress} loaded={entry.loaded} total={entry.total} speed={entry.speed} />
+                )}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Combined progress for multi-file uploads */}
+        {uploading && files.length > 1 && (
+          <div className="upload-overall">
+            Overall: {overallPercent}% · {formatBytes(overallLoaded)} of {formatBytes(overallTotal)} · {formatSpeed(overallSpeed)}
           </div>
         )}
 

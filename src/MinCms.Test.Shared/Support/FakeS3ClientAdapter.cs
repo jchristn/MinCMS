@@ -45,6 +45,15 @@ namespace MinCms.Test.Shared.Support
         /// <summary>Recorded batch delete calls (list of key lists).</summary>
         public List<List<string>> DeleteObjectsCalls { get; } = new List<List<string>>();
 
+        /// <summary>Invoked with the part number before each UploadPart call stores its data.</summary>
+        public Action<int> BeforeUploadPart { get; set; }
+
+        /// <summary>Invoked with the part number after each UploadPart call stores its data.</summary>
+        public Action<int> AfterUploadPart { get; set; }
+
+        /// <summary>Invoked while a CompleteMultipartUpload call is in progress, after the object is stored.</summary>
+        public Action DuringCompleteMultipartUpload { get; set; }
+
         /// <summary>When set to a part number, that UploadPart call throws to simulate a failure.</summary>
         public int FailPartNumber { get; set; } = -1;
 
@@ -243,6 +252,9 @@ namespace MinCms.Test.Shared.Support
         public async Task<UploadPartResponse> UploadPartAsync(UploadPartRequest request, CancellationToken token = default)
         {
             int partNumber = request.PartNumber ?? 0;
+            BeforeUploadPart?.Invoke(partNumber);
+            token.ThrowIfCancellationRequested();
+
             if (partNumber == FailPartNumber)
                 throw new InvalidOperationException("Simulated multipart upload failure.");
 
@@ -260,6 +272,7 @@ namespace MinCms.Test.Shared.Support
                     upload.Parts[partNumber] = body;
             }
 
+            AfterUploadPart?.Invoke(partNumber);
             return new UploadPartResponse { ETag = "\"etag-" + partNumber + "\"" };
         }
 
@@ -284,6 +297,7 @@ namespace MinCms.Test.Shared.Support
                     _Uploads.Remove(request.UploadId);
                 }
 
+                DuringCompleteMultipartUpload?.Invoke();
                 return Task.FromResult(new CompleteMultipartUploadResponse());
             }
         }
@@ -291,6 +305,9 @@ namespace MinCms.Test.Shared.Support
         /// <inheritdoc />
         public Task<AbortMultipartUploadResponse> AbortMultipartUploadAsync(AbortMultipartUploadRequest request, CancellationToken token = default)
         {
+            // Mirror the AWS SDK, which refuses to send a request with a cancelled token.
+            token.ThrowIfCancellationRequested();
+
             lock (_Sync)
             {
                 AbortMultipartUploadCalls.Add(new AbortMultipartUploadCall(request.UploadId));

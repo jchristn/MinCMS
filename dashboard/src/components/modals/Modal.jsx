@@ -1,10 +1,10 @@
 import './Modal.css';
 
-const Modal = ({ isOpen, onClose, title, children, size = 'medium' }) => {
+const Modal = ({ isOpen, onClose, title, children, size = 'medium', closeOnBackdrop = true }) => {
   if (!isOpen) return null;
 
   const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget) onClose();
+    if (closeOnBackdrop && e.target === e.currentTarget) onClose();
   };
 
   return (
