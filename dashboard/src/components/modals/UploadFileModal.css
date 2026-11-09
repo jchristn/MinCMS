@@ -127,6 +127,30 @@
   font-size: 12px;
 }
 
+/* Upload progress */
+.upload-file-progress {
+  flex-shrink: 0;
+  width: 80px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border-default);
+  overflow: hidden;
+}
+
+.upload-file-progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent-primary);
+  transition: width 0.2s;
+}
+
+.upload-file-progress-label {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Remove button */
 .upload-file-remove {
   flex-shrink: 0;

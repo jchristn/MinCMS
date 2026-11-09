@@ -367,6 +367,7 @@ Response:
   - `Content-Type`
   - `Content-Length`
   - `Content-Disposition`
+- Errors found before the transfer starts, such as a missing file, return a normal error response. If storage fails after the transfer starts, the connection closes early, so clients should compare the bytes received with `Content-Length`.
 
 ## Data Models
 

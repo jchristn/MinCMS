@@ -520,15 +520,12 @@ namespace MinCms.Server
 
                     SetHeader(ctx.Response.Headers, "Content-Disposition", "attachment; filename=\"" + downloadName + "\"");
 
-                    byte[] fileBytes;
-                    using (MemoryStream ms = new MemoryStream())
+                    // Stream straight from storage: buffering here delays the first byte until the
+                    // whole object has been read and costs memory proportional to the file size.
+                    using (Stream content = downloadResult.Content)
                     {
-                        await downloadResult.Content.CopyToAsync(ms, ctx.Token).ConfigureAwait(false);
-                        fileBytes = ms.ToArray();
+                        await ctx.Response.Send(downloadResult.ContentLength, content, ctx.Token).ConfigureAwait(false);
                     }
-
-                    downloadResult.Content.Dispose();
-                    await ctx.Response.Send(fileBytes, ctx.Token).ConfigureAwait(false);
                 }));
         }
 

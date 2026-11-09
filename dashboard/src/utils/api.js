@@ -63,7 +63,9 @@ class ApiClient {
     return this.request(endpoint, { method: 'DELETE' });
   }
 
-  async upload(endpoint, file, fileName) {
+  // Uses XMLHttpRequest because fetch cannot report request-body progress.
+  // onProgress receives { loaded, total } in bytes, including multipart overhead.
+  async upload(endpoint, file, fileName, onProgress) {
     const formData = new FormData();
     if (fileName) {
       formData.append('file', file, fileName);
@@ -71,9 +73,61 @@ class ApiClient {
       formData.append('file', file);
     }
 
-    return this.request(endpoint, {
-      method: 'POST',
-      body: formData,
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${this.baseUrl}${endpoint}`);
+
+      if (this.accessKey) {
+        xhr.setRequestHeader('x-api-key', this.accessKey);
+      }
+
+      if (onProgress) {
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            onProgress({ loaded: e.loaded, total: e.total });
+          }
+        };
+      }
+
+      xhr.onload = () => {
+        const contentType = xhr.getResponseHeader('content-type');
+        const isJson = contentType && contentType.includes('application/json');
+
+        if (xhr.status < 200 || xhr.status >= 300) {
+          let errorMessage = `HTTP ${xhr.status}`;
+          try {
+            if (isJson) {
+              const errorData = JSON.parse(xhr.responseText);
+              errorMessage = errorData.Description || errorData.Message || errorMessage;
+            }
+          } catch (_) { /* ignore parse errors */ }
+
+          const error = new Error(errorMessage);
+          error.status = xhr.status;
+          reject(error);
+          return;
+        }
+
+        if (xhr.status === 204 || xhr.getResponseHeader('content-length') === '0') {
+          resolve(null);
+          return;
+        }
+
+        try {
+          if (isJson) {
+            resolve(xhr.responseText ? JSON.parse(xhr.responseText) : null);
+          } else {
+            resolve(xhr.responseText);
+          }
+        } catch (e) {
+          reject(e);
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Network error during upload'));
+      xhr.onabort = () => reject(new Error('Upload aborted'));
+
+      xhr.send(formData);
     });
   }
 
@@ -106,8 +160,8 @@ class ApiClient {
     return this.get(`/v1.0/collections/${encodeURIComponent(slug)}/files`);
   }
 
-  async uploadFile(slug, file, fileName) {
-    return this.upload(`/v1.0/collections/${encodeURIComponent(slug)}/files`, file, fileName);
+  async uploadFile(slug, file, fileName, onProgress) {
+    return this.upload(`/v1.0/collections/${encodeURIComponent(slug)}/files`, file, fileName, onProgress);
   }
 
   async getFileText(slug, fileName) {

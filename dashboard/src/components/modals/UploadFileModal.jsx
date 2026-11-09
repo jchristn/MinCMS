@@ -68,6 +68,21 @@ const StatusIcon = ({ status }) => {
   return null;
 };
 
+const UploadProgress = ({ percent }) => {
+  if (percent === undefined || percent === null) return null;
+  if (percent >= 100) {
+    return <span className="upload-file-progress-label">Finalizing…</span>;
+  }
+  return (
+    <>
+      <span className="upload-file-progress" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
+        <span className="upload-file-progress-fill" style={{ width: `${percent}%` }} />
+      </span>
+      <span className="upload-file-progress-label">{percent}%</span>
+    </>
+  );
+};
+
 const UploadFileModal = ({ isOpen, onClose, onSubmit, initialFiles }) => {
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -76,6 +91,7 @@ const UploadFileModal = ({ isOpen, onClose, onSubmit, initialFiles }) => {
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
   const cancelledRef = useRef(false);
+  const runRef = useRef(0);
 
   // Seed with files passed in from an external drop (e.g. on the table)
   useEffect(() => {
@@ -183,6 +199,7 @@ const UploadFileModal = ({ isOpen, onClose, onSubmit, initialFiles }) => {
     setUploading(true);
     setDone(false);
     cancelledRef.current = false;
+    const run = ++runRef.current;
 
     const maxConcurrent = 4;
     let nextIndex = 0;
@@ -194,8 +211,19 @@ const UploadFileModal = ({ isOpen, onClose, onSubmit, initialFiles }) => {
         setFiles((prev) =>
           prev.map((f, idx) => (idx === i ? { ...f, status: 'uploading' } : f))
         );
+        let lastPercent = -1;
+        const onProgress = ({ loaded, total }) => {
+          // A closed or restarted modal has a different file list, so its indexes no longer apply.
+          if (cancelledRef.current || runRef.current !== run || !total) return;
+          const percent = Math.min(100, Math.floor((loaded / total) * 100));
+          if (percent === lastPercent) return;
+          lastPercent = percent;
+          setFiles((prev) =>
+            prev.map((f, idx) => (idx === i ? { ...f, progress: percent } : f))
+          );
+        };
         try {
-          await onSubmit(files[i].file, files[i].relativePath);
+          await onSubmit(files[i].file, files[i].relativePath, onProgress);
           setFiles((prev) =>
             prev.map((f, idx) => (idx === i ? { ...f, status: cancelledRef.current ? 'pending' : 'done' } : f))
           );
@@ -294,6 +322,7 @@ const UploadFileModal = ({ isOpen, onClose, onSubmit, initialFiles }) => {
               <div key={entry.relativePath + index} className={`upload-file-row status-${entry.status}`}>
                 <StatusIcon status={entry.status} />
                 <span className="upload-file-path" title={entry.relativePath}>{entry.relativePath}</span>
+                {entry.status === 'uploading' && <UploadProgress percent={entry.progress} />}
                 <span className="upload-file-size">{formatSize(entry.file.size)}</span>
                 {entry.status === 'pending' && !uploading && (
                   <button

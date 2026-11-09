@@ -5,6 +5,9 @@
 - Updated NuGet dependencies: AWSSDK.S3 4.0.104.1, SyslogLogging 2.3.1, Watson 7.2.2, Microsoft.NET.Test.Sdk 18.10.1, NUnit 5.0.0, NUnit3TestAdapter 6.3.0, Touchstone (Core, Cli, XunitAdapter, NunitAdapter) 0.2.0
 - Fixed multipart uploads (large files) failing with 409 "Base stream of PartialWrapperStream must be seekable"; part streams are now seekable
 - Added `build-all.sh`, `build-server.sh`, and `build-dashboard.sh` Docker build scripts for macOS/Linux
+- Downloads now stream from storage instead of being read fully into memory first, so they start immediately, use far less server memory, and work for files over 2 GB. A storage failure after a download starts now closes the connection early instead of returning a JSON error
+- Dashboard uploads now show per-file progress and a "Finalizing" state while the server stores the file
+- Added dashboard tests (`npm test`) and download streaming tests
 
 ## Previous Version v0.1.1
 

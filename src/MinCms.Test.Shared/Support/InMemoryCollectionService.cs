@@ -20,6 +20,12 @@ namespace MinCms.Test.Shared.Support
         private readonly Dictionary<string, Collection> _Collections = new Dictionary<string, Collection>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, Dictionary<string, FileRecord>> _Files = new Dictionary<string, Dictionary<string, FileRecord>>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// Optional override for the stream and length a download returns, keyed on the file name.
+        /// Return null to fall back to the stored content.
+        /// </summary>
+        public Func<string, (Stream Content, long Length)?> DownloadOverride { get; set; }
+
         /// <summary>Instantiate and seed the "alpha" collection.</summary>
         public InMemoryCollectionService()
         {
@@ -133,6 +139,19 @@ namespace MinCms.Test.Shared.Support
             lock (_Sync)
             {
                 EnsureCollection(slug);
+
+                (Stream Content, long Length)? overridden = DownloadOverride?.Invoke(fileName);
+                if (overridden.HasValue)
+                {
+                    return Task.FromResult(new DownloadFileResult
+                    {
+                        Content = overridden.Value.Content,
+                        ContentLength = overridden.Value.Length,
+                        ContentType = Constants.BinaryContentType,
+                        FileName = fileName
+                    });
+                }
+
                 if (!_Files[slug].TryGetValue(fileName, out FileRecord record))
                     throw new FileNotFoundException("File '" + fileName + "' not found in collection '" + slug + "'.");
 

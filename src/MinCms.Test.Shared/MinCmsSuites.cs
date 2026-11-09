@@ -23,7 +23,8 @@ namespace MinCms.Test.Shared
                     SerializationSuite(),
                     S3ServiceSuite(),
                     CollectionServiceSuite(),
-                    ApiHostSuite()
+                    ApiHostSuite(),
+                    DownloadStreamingSuite()
                 };
             }
         }
